@@ -8,6 +8,8 @@ function Worker(type) {
 	this.pub;
 	this.notifications_error_sub;
 	this.notifications_getAll_sub;
+	this.notifications_nextjob_sub;
+	this.nextJobForMe = true; // boolean: when worker is in a pool of workers of the same type, they have to determine who's next.
 
 	var self=this;
 	this.context = require('rabbit.js').createContext('amqp://localhost');
@@ -15,6 +17,7 @@ function Worker(type) {
   		self.pub = self.context.socket('PUB', {routing: 'topic'});
 		self.notifications_error_sub = self.context.socket('SUB', {routing: 'topic'});
 		self.notifications_getAll_sub = self.context.socket('SUB', {routing: 'topic'});
+		self.notifications_nextjob_sub = self.context.socket('SUB', {routing: 'topic'});
   		self.pub.connect('notifications', function() {
 			logger.log("MicroService", "Worker", "Connected to notifications");
 			self.pub.publish("worker.new", JSON.stringify(self.getConfig()));
@@ -26,9 +29,15 @@ function Worker(type) {
 			});
 		});
 		self.notifications_getAll_sub.connect('notifications', 'worker.getAll', function() {
-			logger.log("microService", "Worker", "Connected to notifications, Topic worker.getAll");
+			logger.log("MicroService", "Worker", "Connected to notifications, Topic worker.getAll");
 			self.notifications_getAll_sub.on('data', function(data) {
 				self.pub.publish("worker.new", JSON.stringify(self.getConfig()));
+			});
+		});
+		self.notifications_nextjob_sub.connect('notifications', 'worker.next', function() {
+			logger.log("MicroService", "Worker", "Connected to notifications, Topic worker.next");
+			self.notifications_nextjob_sub.on('data', function(data) {
+				self.receiveNextJob(data);
 			});
 		});
 	});
@@ -66,6 +75,19 @@ Worker.prototype.receiveError = function(error) {
 
 // Need to be surcharged by any child class
 Worker.prototype.treatError = function(error) {
+
+}
+
+Worker.prototype.receiveNextJob = function(data) {
+	logger.log("MicroService", "Worker", "Receiving next job: "+data);
+	oData = JSON.parse(data);
+	if (this.nextJobForMe && oData.workers_list[0] == this.type) {
+		this.doJob(oData);
+	}
+}
+
+// Need to be surcharged by any child class
+Worker.prototype.doJob = function(data) {
 
 }
 
