@@ -1,0 +1,26 @@
+{
+	"name": "MicroServices",
+	"version": "0.0.1",
+	"description": "a microservice architecture ready to use. Just use heritage on workers.",
+	"author": "kobe1980 <kobe1980@gmail.com>",
+	"bin": {
+		"run": "./SystemManager.js"
+	},
+	"dependencies": {
+		"rabbit.js": "0.4.4",
+		"cli-color": "0.3.3"
+	},
+	"scripts": {
+		"start": "node SystemManager.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/kobe1980/MicroServices.git"
+	},
+	"keywords": [
+		"Microservices",
+		"RabbitMQ",
+		"Distributed architecture"
+	],
+	"license": "MIT"
+}

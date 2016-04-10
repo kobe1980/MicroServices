@@ -1,0 +1,9 @@
+/**
+ * Config file for every worker 
+ * contains the information to connect to the broker
+ * broker_url: url of the broker system. Here RabbitMQ
+ * 
+ **/ 
+{
+	"broker_url": "amqp://localhost"
+}
