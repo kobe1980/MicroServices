@@ -3,7 +3,7 @@ MicroServices.js is a minimum implementation of a micro service architecture, ba
 Every service is communicating throw the RabbitMQ broker.
 
 **Architecture overview**
-![Architecture](http://github.com/kobe1980/MicroServices/blob/master/doc/archi.png)
+![Architecture](https://github.com/kobe1980/MicroServices/blob/master/doc/archi.png)
 
 **Components**
 
