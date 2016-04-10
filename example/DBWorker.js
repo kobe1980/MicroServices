@@ -1,18 +1,22 @@
 // Child class of Worker dedicated to DB connection
-var Worker = require("./Worker.js");
-var logger = require("./logger.js");
+var Worker = require("../Worker.js");
+var logger = require("../logger.js");
 
 var DBW = new Worker("WB");
 DBW.treatError = function(error) {
 	logger. log("MicroService", "Worker B - DB connector", "Error received");
 }
 
-DBW.prototype.storeInDB(data) {
+DBW.doJob = function(data) {
+	logger.log("MicroService", "Worker B - DB connector", "Job to do: "+JSON.stringify(data));
+}
+
+DBW.storeInDB = function(data) {
 	// DO Whatever
 }
 
-DBW.prototype.getFromDB() {
+DBW.getFromDB = function() {
 	// DO Whatever
 }
 
-setTimeout(function() {bddW.sendToNextWorker(["WA", "WB"], {title: "toto"});}, 500);
+setTimeout(function() {DBW.sendToNextWorker(["WA", "WB"], {title: "toto"});}, 500);
