@@ -12,6 +12,7 @@ function Worker(type) {
 	this.notifications_nextjoback_sub;
 	this.nextJobForMe = true; // boolean: when worker is in a pool of workers of the same type, they have to determine who's next.
 	this.jobsSent = Array();
+	this.job_retry=5; //nb of retry
 
 	var self=this;
 	this.context = require('rabbit.js').createContext('amqp://localhost');
@@ -66,10 +67,10 @@ Worker.prototype.kill = function() {
 	this.pub.publish('worker.del', JSON.stringify(this.getConfig()));
 }
 
-Worker.prototype.sendToNextWorker = function(next_workers, data) {
-	logger.log("MicroService", "Worker", "Sending data to the next worker on the list");
+Worker.prototype.sendToNextWorker = function(next_workers, data, jobId, tries) {
+	logger.log("MicroService", "Worker", "Sending data to the next worker on the list.");
 	var self = this;
-	var job_to_send = {timeoutId: null, job: {workers_list: next_workers, data: data, sender: this.getConfig(), id: "J"+new Date().getTime()}};
+	var job_to_send = {timeoutId: null, job: {workers_list: next_workers, data: data, sender: this.getConfig(), id: (jobId?jobId:"J"+new Date().getTime())}, tries: (tries?tries:1)};
 	this.pub.publish('worker.next', JSON.stringify(job_to_send.job));
 	job_to_send.timeoutId = setTimeout(function() {self.resend(next_workers, job_to_send)}, 2000);
 	this.jobsSent.push(job_to_send);
@@ -78,7 +79,11 @@ Worker.prototype.sendToNextWorker = function(next_workers, data) {
 Worker.prototype.resend = function(next_workers, job_to_send) {
 	logger.log("MicroService", "Worker", "No worker took the job, resending it");
 	clearTimeout(job_to_send.timeoutId);
-	this.sendToNextWorker(next_workers, job_to_send.job.data);
+	if (job_to_send.tries >= this.job_retry) {
+		logger.log("MicroService", "Worker", "Job Send " + this.job_retry + " times. Stopping", "ERROR");
+		return this.treatError({error: "Job send too many times"});
+	}
+	this.sendToNextWorker(next_workers, job_to_send.job.data, job_to_send.job.id, (job_to_send.tries+1));
 }
 
 Worker.prototype.receiveError = function(error) {
