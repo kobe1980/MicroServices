@@ -34,7 +34,7 @@ function SystemManager() {
 					logger.log("MicroService", "SystemManager", "Next Job can be done by at least one worker");
 				} else {
 					logger.log("MicroService", "SystemManager", "No worker of the good type");
-					self.pub.publish('error', JSON.stringify({target: nJobData.sender, error: "No worker available for this job"}));
+					self.pub.publish('error', JSON.stringify({target: nJobData.sender, error: "No worker available for this job", id: nJobData.id}));
 				}
 			});	
 		});
