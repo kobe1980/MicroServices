@@ -54,7 +54,7 @@ The only configuration mandatory is the RabbitMQ connection URL. It is stored in
 
 **Create your own system**
 
-To create your own system you have to inherit a dedicated worker from the Worker.js
+To create your own system you have to inherit a dedicated worker from the *Worker* class
 Here an example of a DB Worker
 
 > // Child class of Worker dedicated to DB connection
@@ -75,5 +75,9 @@ Here an example of a DB Worker
 > }
 
 *logger.js is a logger function to log on the console with colored syntax
+
+**TODO**
+
+Manage bus connection issues on both *workers* and *SystemManager*.
 
 > Written with [StackEdit](https://stackedit.io/).
