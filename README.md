@@ -52,9 +52,13 @@ The only configuration mandatory is the RabbitMQ connection URL. It is stored in
 >         "broker_url": "amqp://localhost"
 > }
 
+**Ack and retry**
+
+When a job is sent, the *worker* that take it have to send an ack. If no worker does, the job is resend every 2s until it is taken or the *SystemManager* says that there's no worker of the good type.
+
 **Create your own system**
 
-To create your own system you have to inherit a dedicated worker from the *Worker* class
+To create your own system you have to inherit a dedicated com from the *Worker* class
 Here an example of a DB Worker
 
 > // Child class of Worker dedicated to DB connection
