@@ -2,17 +2,21 @@
 var logger = require('./logger.js');
 
 function Worker(type) {
-	logger.log("MicroService", "Worker", "Starting client");
 	this.type = type;
 	this.id = type+new Date().getTime();
+	logger.log("MicroService", "Worker", "Starting client - type: "+type+", id: "+this.id);
 	this.pub;
 	this.notifications_error_sub;
+	this.notifications_newworker_sub;
+	this.notifications_workerslist_sub;
 	this.notifications_getAll_sub;
+	this.notifications_workerdel_sub;
 	this.notifications_nextjob_sub;
 	this.notifications_nextjoback_sub;
 	this.nextJobForMe = true; // boolean: when worker is in a pool of workers of the same type, they have to determine who's next.
 	this.jobsSent = Array();
 	this.job_retry=5; //nb of retry
+	this.sameTypeWorkers = Array();
 
 	var self=this;
 	this.context = require('rabbit.js').createContext('amqp://localhost');
@@ -20,12 +24,31 @@ function Worker(type) {
   		self.pub = self.context.socket('PUB', {routing: 'topic'});
 		self.notifications_error_sub = self.context.socket('SUB', {routing: 'topic'});
 		self.notifications_getAll_sub = self.context.socket('SUB', {routing: 'topic'});
+		self.notifications_newworker_sub = self.context.socket('SUB', {routing: 'topic'});
+		self.notifications_workerdel_sub = self.context.socket('SUB', {routing: 'topic'});
+		self.notifications_workerslist_sub = self.context.socket('SUB', {routing: 'topic'});
 		self.notifications_nextjob_sub = self.context.socket('SUB', {routing: 'topic'});
 		self.notifications_nextjoback_sub = self.context.socket('SUB', {routing: 'topic'});
-  		self.pub.connect('notifications', function() {
-			logger.log("MicroService", "Worker", "Connected to notifications");
-			self.pub.publish("worker.new", JSON.stringify(self.getConfig()));
+		self.notifications_newworker_sub.connect('notifications', 'worker.new', function() {
+			self.notifications_workerslist_sub.connect('notifications', 'worker.list', function() {
+				self.notifications_workerslist_sub.on('data', function(data) {
+					self.updateWorkersList(data);
+				});
+				self.notifications_newworker_sub.on('data', function(data) {
+					self.newWorker(data);
+				});
+	  			self.pub.connect('notifications', function() {
+					logger.log("MicroService", "Worker", "Connected to notifications");
+					self.pub.publish("worker.new", JSON.stringify(self.getConfig()));
+				});
+			});
   		});
+		self.notifications_workerdel_sub.connect('notifications', 'worker.del', function() {
+			logger.log("MicroService", "Worker", "Connected to notification, Topic worker.del");
+			self.notifications_workerdel_sub.on('data', function(data) {
+				self.delWorker(data);
+			});
+		});
 		self.notifications_error_sub.connect('notifications', 'error', function() {
 			logger.log("MicroService", "Worker", "Connected to notification, Topic error");
 			self.notifications_error_sub.on('data', function(data) {
@@ -89,7 +112,7 @@ Worker.prototype.resend = function(next_workers, job_to_send) {
 Worker.prototype.receiveError = function(error) {
 	logger.log("MicroService", "Worker", "Receiving error: "+error, "ERROR");
 	var e = JSON.parse(error);
-	if (e.target.id = this.id) {
+	if (e.target.id == this.id) {
 		logger.log("MicroService", "Worker", "Error is for this worker. Do something", "ERROR");
 		this.clearJobTimeout(e.id, "ERROR");
 		this.treatError(error);
@@ -130,6 +153,36 @@ Worker.prototype.clearJobTimeout = function(jobId, LEVEL) {
 			clearTimeout(this.jobsSent[i].timeoutId);
 		}
 	}
+}
+
+// Add a new worker on the list if another worker of the same type announce itself on the bus
+Worker.prototype.newWorker = function(worker) {
+	oWorker = JSON.parse(worker);
+	if (oWorker.type == this.type) {
+		logger.log("MicroService", "Worker", "New Worker add on the list of worker type "+this.type);
+		this.sameTypeWorkers.push(oWorker);
+		if (this.sameTypeWorkers[0].id == this.id && oWorker.id != this.id) {
+			logger.log("MicroService", "Worker", "First on the list, sending list to others");
+			this.pub.publish('worker.list', JSON.stringify(this.sameTypeWorkers));
+		}
+	}
+}
+
+Worker.prototype.delWorker = function(worker) {
+	oWorker = JSON.parse(worker);
+	if (oWorker.type == this.type) {
+		logger.log("MicroService", "Worker", "Removing a worker on the list");
+		for (var i in this.sameTypeWorkers) {
+			if (this.sameTypeWorkers[i].id == oWorker.id) {
+				this.sameTypeWorkers.splice(i, 1);
+			}
+		}
+	}
+}
+
+Worker.prototype.updateWorkersList = function(workers_list) {
+	logger.log("MicroService", "Worker", "Updating Workers List");
+	this.sameTypeWorkers = JSON.parse(workers_list);
 }
 
 module.exports = Worker;
