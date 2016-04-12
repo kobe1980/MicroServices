@@ -9,6 +9,12 @@ PilotW.treatError = function(error) {
 
 PilotW.doJob = function(data) {
 	logger.log("MicroService", "Worker D - Pilot Worker", "Job to do: "+JSON.stringify(data));
+	switch (data.data.method) {
+	case "GET": 
+	case "POST":
+		PilotW.sendToNextWorker(["WB", "WA"], data.data); // send to DBWorker to retrieve or push the data and send it back to the REST Worker
+		break;
+	default:
+		logger.log("MicroService", "Worker D - Pilot Worker", "This should not happen");
+	}
 }
-
-setTimeout(function() {PilotW.sendToNextWorker(["WA", "WB"], {title: "toto"});}, 500);

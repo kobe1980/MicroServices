@@ -9,7 +9,7 @@ var requests = Array();
 var RESTW = new Worker("WA");
 RESTW.treatError = function(error) {
 	logger. log("MicroService", "Worker A - REST connector", "Error received");
-	oError = JSON.parse(error);
+	var oError = JSON.parse(error);
 	var response = requests[oError.data.resId].res;
 	response.writeHead(500);
 	response.end();
@@ -17,11 +17,10 @@ RESTW.treatError = function(error) {
 
 RESTW.doJob = function(data) {
 	logger.log("MicroService", "Worker A - REST connector", "Job to do: "+JSON.stringify(data));
-	oData = JSON.parse(data);
-	var response = requests[oData.resId].res;
+	var response = requests[data.data.resId].res;
 	response.writeHead(200);
-	response.end(oData.content);
-	requests.splice(oData.resId, 1);
+	response.end(JSON.stringify(data.data.content));
+	requests.splice(data.resId, 1);
 }
 
 var server = http.createServer(function(req, res) {
