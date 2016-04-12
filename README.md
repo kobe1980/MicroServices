@@ -93,5 +93,8 @@ Manage bus connection issues on both *workers* and *SystemManager*.
 In the example, you can find a REST Worker, accepting connexion on port 8080.
 If http method is not post or get, or if path is different from /movies/, it will responde 404.
 Else, it will send a message to the Pilot Worker to treat the customer request.
+The Pilot will ask the DB Worker to store or retrieve the data and send it back to the REST Worker.
+Finally, the REST Worker responde the client.
+If an error occurs, the REST Worker will answer with HTTP 500 code.
 
 > Written with [StackEdit](https://stackedit.io/).
