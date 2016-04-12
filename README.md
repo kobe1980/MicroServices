@@ -3,6 +3,11 @@
 MicroServices.js is a minimum implementation of a micro service architecture, based on Node.js and RabbitMQ.
 Every service is communicating throw the RabbitMQ broker.
 
+**Dependencies**
+
+ -  [Rabbit.js](http://www.squaremobius.net/rabbit.js/). RabbitMQ is not include. You need to install it.
+ - cli-color used for logger color.
+
 **Architecture overview**
 
 ![Architecture](https://github.com/kobe1980/MicroServices/blob/master/doc/archi.png)
