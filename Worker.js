@@ -79,6 +79,7 @@ function Worker(type) {
 		self.kill();
 		setTimeout(process.exit, 500); // Mandatory. If no timeout, the end of the process occurs before the message to be sent.
 	});
+	// setInterval(function() {self.printSameTypeWorkers();}, 8000); // print workers list for debug
 }
 
 Worker.prototype.getConfig = function() {
@@ -88,6 +89,9 @@ Worker.prototype.getConfig = function() {
 Worker.prototype.kill = function() {
 	logger.log("MicroService", "Worker", "Stopping client");
 	this.pub.publish('worker.del', JSON.stringify(this.getConfig()));
+	for (var i in this.sameTypeWorkers) {
+		logger.log("MicroService", "Worker", "sameTypeWorker["+i+"] = "+JSON.stringify(this.sameTypeWorkers[i]));
+	}
 }
 
 Worker.prototype.sendToNextWorker = function(next_workers, data, jobId, tries) {
@@ -144,6 +148,7 @@ Worker.prototype.receiveNextJobAck = function(data) {
 	logger.log("MicroService", "Worker", "Receiving next job Ack: "+data);
 	oData = JSON.parse(data);
 	this.clearJobTimeout(oData.id, "INFO");	
+	this.updateSameTypeWorkers();
 }
 
 Worker.prototype.clearJobTimeout = function(jobId, LEVEL) {
@@ -160,8 +165,9 @@ Worker.prototype.newWorker = function(worker) {
 	oWorker = JSON.parse(worker);
 	if (oWorker.type == this.type) {
 		logger.log("MicroService", "Worker", "New Worker add on the list of worker type "+this.type);
-		this.sameTypeWorkers.push(oWorker);
-		if (this.sameTypeWorkers[0].id == this.id && oWorker.id != this.id) {
+		var size = this.sameTypeWorkers.push({worker: oWorker, isNext: false});
+		this.updateSameTypeWorkers();
+		if (this.sameTypeWorkers[0].worker.id == this.id && oWorker.id != this.id) {
 			logger.log("MicroService", "Worker", "First on the list, sending list to others");
 			this.pub.publish('worker.list', JSON.stringify(this.sameTypeWorkers));
 		}
@@ -173,8 +179,10 @@ Worker.prototype.delWorker = function(worker) {
 	if (oWorker.type == this.type) {
 		logger.log("MicroService", "Worker", "Removing a worker on the list");
 		for (var i in this.sameTypeWorkers) {
-			if (this.sameTypeWorkers[i].id == oWorker.id) {
+			if (this.sameTypeWorkers[i].worker.id == oWorker.id) {
 				this.sameTypeWorkers.splice(i, 1);
+				this.updateSameTypeWorkers((i>this.sameTypeWorkers.length-1)?0:i);
+				break;
 			}
 		}
 	}
@@ -183,6 +191,46 @@ Worker.prototype.delWorker = function(worker) {
 Worker.prototype.updateWorkersList = function(workers_list) {
 	logger.log("MicroService", "Worker", "Updating Workers List");
 	this.sameTypeWorkers = JSON.parse(workers_list);
+}
+
+Worker.prototype.setNextJobForMe = function(forMe) {
+	this.nextJobForMe = forMe;
+}
+
+Worker.prototype.updateSameTypeWorkers = function(position) {
+	logger.log("MicroService", "Worker", "UpdateSameTypeWorkers : "+position);
+	if (position) {
+		for (var i in this.sameTypeWorkers) {
+			if (i == position) {
+				this.sameTypeWorkers[i].isNext = true;
+				if (this.sameTypeWorkers[i].worker.id == this.id) this.setNextJobForMe(true);
+			} else {
+				this.sameTypeWorkers[i].isNext = false;
+			}
+		}
+	} else {
+		if (this.sameTypeWorkers.length == 1) this.sameTypeWorkers[0].isNext = true;
+		else {
+			for (var i in this.sameTypeWorkers) {
+				if (this.sameTypeWorkers[i].isNext == true) {
+					var nextWorker = ((i/1+1) >= this.sameTypeWorkers.length?0:(i/1+1));
+					this.sameTypeWorkers[i].isNext=false;
+					this.sameTypeWorkers[nextWorker].isNext=true;
+					if (this.sameTypeWorkers[nextWorker].worker.id == this.id) this.setNextJobForMe(true);
+					else this.setNextJobForMe(false);
+					break;
+				}
+			}
+		}
+	}	
+}
+
+Worker.prototype.printSameTypeWorkers = function() {
+	logger.log("MicroService", "Worker", "--------------------------------------------------");
+	logger.log("MicroService", "Worker", "this.nextJobForMe: "+this.nextJobForMe);
+	for (var i in this.sameTypeWorkers) {
+		logger.log("MicroService", "Worker", JSON.stringify(this.sameTypeWorkers[i]));
+	}
 }
 
 module.exports = Worker;
