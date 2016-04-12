@@ -89,4 +89,9 @@ Here an example of a DB Worker
 
 Manage bus connection issues on both *workers* and *SystemManager*.
 
+**Example**
+In the example, you can find a REST Worker, accepting connexion on port 8080.
+If http method is not post or get, or if path is different from /movies/, it will responde 404.
+Else, it will send a message to the Pilot Worker to treat the customer request.
+
 > Written with [StackEdit](https://stackedit.io/).
