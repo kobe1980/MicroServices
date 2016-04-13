@@ -1,5 +1,6 @@
 // Parent Class of any worker
 var logger = require('./logger.js');
+var config = require('./config/config.json');
 
 function Worker(type) {
 	this.type = type;
@@ -19,7 +20,7 @@ function Worker(type) {
 	this.sameTypeWorkers = Array();
 
 	var self=this;
-	this.context = require('rabbit.js').createContext('amqp://localhost');
+	this.context = require('rabbit.js').createContext(config.broker_url);
 	this.context.on('ready', function() {
   		self.pub = self.context.socket('PUB', {routing: 'topic'});
 		self.notifications_error_sub = self.context.socket('SUB', {routing: 'topic'});
