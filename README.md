@@ -47,6 +47,7 @@ As, the SystemManager can be launch after the workers, it can get the list of al
 **System configuration**
 
 The only configuration mandatory is the RabbitMQ connection URL. It is stored in the config/config.json file.
+You can add a keepalive key that allow the *SystemManager* to regularly ask for *Workers* list. If 0 or no entry, the keepalive is not done.
 > /**
 >  * Config file for every worker 
 >  * contains the information to connect to the broker
@@ -54,7 +55,8 @@ The only configuration mandatory is the RabbitMQ connection URL. It is stored in
 >  * 
 >  **/ 
 > {
->         "broker_url": "amqp://localhost"
+>         "broker_url": "amqp://localhost",
+>         "keepalive": 10000
 > }
 
 **Ack and retry**
