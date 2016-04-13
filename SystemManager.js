@@ -13,7 +13,7 @@ function SystemManager() {
 	var self=this;
 	this.context.on('ready', function() {
         	self.notification_newworker_sub = self.context.socket('SUB', {routing: 'topic'});
-	        self.notification_newworker_sub.connect('notifications', 'worker.new',  function() {
+	        self.notification_newworker_sub.connect('notifications', 'worker.new.*',  function() {
         	        logger.log("MicroService", "SystemManager", "Connected to Channel notifications, New worker topic");
                 	self.notification_newworker_sub.on('data', function(data){
                         	self.addWorker(data);

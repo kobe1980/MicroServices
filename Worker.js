@@ -29,7 +29,7 @@ function Worker(type) {
 		self.notifications_workerslist_sub = self.context.socket('SUB', {routing: 'topic'});
 		self.notifications_nextjob_sub = self.context.socket('SUB', {routing: 'topic'});
 		self.notifications_nextjoback_sub = self.context.socket('SUB', {routing: 'topic'});
-		self.notifications_newworker_sub.connect('notifications', 'worker.new', function() {
+		self.notifications_newworker_sub.connect('notifications', 'worker.new.send', function() {
 			self.notifications_workerslist_sub.connect('notifications', 'worker.list', function() {
 				self.notifications_workerslist_sub.on('data', function(data) {
 					self.updateWorkersList(data);
@@ -39,7 +39,7 @@ function Worker(type) {
 				});
 	  			self.pub.connect('notifications', function() {
 					logger.log("MicroService", "Worker", "Connected to notifications");
-					self.pub.publish("worker.new", JSON.stringify(self.getConfig()));
+					self.pub.publish("worker.new.send", JSON.stringify(self.getConfig()));
 				});
 			});
   		});
@@ -58,7 +58,7 @@ function Worker(type) {
 		self.notifications_getAll_sub.connect('notifications', 'worker.getAll', function() {
 			logger.log("MicroService", "Worker", "Connected to notifications, Topic worker.getAll");
 			self.notifications_getAll_sub.on('data', function(data) {
-				self.pub.publish("worker.new", JSON.stringify(self.getConfig()));
+				self.pub.publish("worker.new.resend", JSON.stringify(self.getConfig()));
 			});
 		});
 		self.notifications_nextjob_sub.connect('notifications', 'worker.next', function() {
