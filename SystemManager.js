@@ -21,7 +21,7 @@ function SystemManager() {
 			self.pub = self.context.socket('PUB', {routing: 'topic'});
 			self.pub.connect('notifications', function() {
 				logger.log("MicroService", "SystemManager", "Connected to notifications, ready to send messages");
-				self.pub.publish('worker.getAll', "Hi workers, tell me who's online");
+				self.keepAlive();
 			});
         	});
 		self.notification_nextjob_sub = self.context.socket('SUB', {routing: 'topic'});
@@ -54,13 +54,19 @@ function SystemManager() {
 		});
 		
 	});
-
+	if (config.keepalive) {
+		setInterval(function() {self.keepAlive();}, config.keepalive);
+	}
 }
 
 SystemManager.prototype.addWorker = function(worker) {
 	var rWorker = JSON.parse(worker);
 	logger.log("MicroService", "SystemManager", "New Worker in the list:" + worker);
 	this.workers_list[rWorker.id] = rWorker;
+}
+
+SystemManager.prototype.keepAlive = function() {
+	this.pub.publish('worker.getAll', "Hi workers, tell me who's online");
 }
 	
 SystemManager.prototype.printWorkersList = function() {

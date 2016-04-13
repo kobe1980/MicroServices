@@ -1,3 +1,4 @@
 {
-	"broker_url": "amqp://localhost"
+	"broker_url": "amqp://localhost",
+	"keepalive": 10000
 }
