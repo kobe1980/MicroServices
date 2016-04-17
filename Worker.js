@@ -2,10 +2,11 @@
 var logger = require('./logger.js');
 var config = require('./config/config.json');
 
-function Worker(type) {
+function Worker(type, active_log) {
 	this.type = type;
+	this.active_log = active_log;
 	this.id = type+new Date().getTime();
-	logger.log("MicroService", "Worker", "Starting client - type: "+type+", id: "+this.id);
+	if (this.active_log) logger.log("MicroService", "Worker", "Starting client - type: "+type+", id: "+this.id);
 	this.pub;
 	this.notifications_error_sub;
 	this.notifications_newworker_sub;
@@ -39,37 +40,37 @@ function Worker(type) {
 					self.newWorker(data);
 				});
 	  			self.pub.connect('notifications', function() {
-					logger.log("MicroService", "Worker", "Connected to notifications");
+					if (self.active_log) logger.log("MicroService", "Worker", "Connected to notifications");
 					self.pub.publish("worker.new.send", JSON.stringify(self.getConfig()));
 				});
 			});
   		});
 		self.notifications_workerdel_sub.connect('notifications', 'worker.del', function() {
-			logger.log("MicroService", "Worker", "Connected to notification, Topic worker.del");
+			if (self.active_log) logger.log("MicroService", "Worker", "Connected to notification, Topic worker.del");
 			self.notifications_workerdel_sub.on('data', function(data) {
 				self.delWorker(data);
 			});
 		});
 		self.notifications_error_sub.connect('notifications', 'error', function() {
-			logger.log("MicroService", "Worker", "Connected to notification, Topic error");
+			if (self.active_log) logger.log("MicroService", "Worker", "Connected to notification, Topic error");
 			self.notifications_error_sub.on('data', function(data) {
 				self.receiveError(data);
 			});
 		});
 		self.notifications_getAll_sub.connect('notifications', 'worker.getAll', function() {
-			logger.log("MicroService", "Worker", "Connected to notifications, Topic worker.getAll");
+			if (self.active_log) logger.log("MicroService", "Worker", "Connected to notifications, Topic worker.getAll");
 			self.notifications_getAll_sub.on('data', function(data) {
 				self.pub.publish("worker.new.resend", JSON.stringify(self.getConfig()));
 			});
 		});
 		self.notifications_nextjob_sub.connect('notifications', 'worker.next', function() {
-			logger.log("MicroService", "Worker", "Connected to notifications, Topic worker.next");
+			if (self.active_log) logger.log("MicroService", "Worker", "Connected to notifications, Topic worker.next");
 			self.notifications_nextjob_sub.on('data', function(data) {
 				self.receiveNextJob(data);
 			});
 		});
 		self.notifications_nextjoback_sub.connect('notifications', 'worker.next.ack', function() {
-			logger.log("MicroService", "Worker", "Connected to notifications, Topic worker.next.ack");
+			if (self.active_log) logger.log("MicroService", "Worker", "Connected to notifications, Topic worker.next.ack");
 			self.notifications_nextjoback_sub.on('data', function(data) {
 				self.receiveNextJobAck(data);
 			});
@@ -78,9 +79,8 @@ function Worker(type) {
 
 	process.on('SIGINT', function() {
 		self.kill();
-		setTimeout(process.exit, 500); // Mandatory. If no timeout, the end of the process occurs before the message to be sent.
+		setTimeout(process.exit, 200); // Mandatory. If no timeout, the end of the process occurs before the message to be sent.
 	});
-	// setInterval(function() {self.printSameTypeWorkers();}, 8000); // print workers list for debug
 }
 
 Worker.prototype.getConfig = function() {
@@ -88,37 +88,60 @@ Worker.prototype.getConfig = function() {
 }
 
 Worker.prototype.kill = function() {
-	logger.log("MicroService", "Worker", "Stopping client");
-	this.pub.publish('worker.del', JSON.stringify(this.getConfig()));
+	if (this.active_log) logger.log("MicroService", "Worker", "Stopping client");
 	for (var i in this.sameTypeWorkers) {
-		logger.log("MicroService", "Worker", "sameTypeWorker["+i+"] = "+JSON.stringify(this.sameTypeWorkers[i]));
+		if (this.active_log) logger.log("MicroService", "Worker", "sameTypeWorker["+i+"] = "+JSON.stringify(this.sameTypeWorkers[i]));
 	}
+	for (var j in this.jobsSent) {
+		clearTimeout(this.jobsSent[j].timeoutId);
+	}
+	this.pub.publish('worker.del', JSON.stringify(this.getConfig()));
+	this.notifications_error_sub.close();
+	this.notifications_getAll_sub.close();
+	this.notifications_newworker_sub.close();
+	this.notifications_workerdel_sub.close();
+	this.notifications_workerslist_sub.close();
+	this.notifications_nextjob_sub.close();
+	this.notifications_nextjoback_sub.close();
+	this.pub.end();
 }
 
-Worker.prototype.sendToNextWorker = function(next_workers, data, jobId, tries) {
-	logger.log("MicroService", "Worker", "Sending data to the next worker on the list.");
+Worker.prototype.sendToNextWorker = function(next_workers, data, workers_list_id, jobId, tries) {
+	if (this.active_log) logger.log("MicroService", "Worker", "Sending data to the next worker on the list.");
 	var self = this;
-	var job_to_send = {timeoutId: null, job: {workers_list: next_workers, data: data, sender: this.getConfig(), id: (jobId?jobId:"J"+new Date().getTime())}, tries: (tries?tries:1)};
+	var job_to_send = {timeoutId: null, job: {workers_list: next_workers, workers_list_id: (workers_list_id?workers_list_id:0), data: data, sender: this.getConfig(), id: (jobId?jobId:"J"+new Date().getTime())}, tries: (tries?tries:1)};
 	this.pub.publish('worker.next', JSON.stringify(job_to_send.job));
 	job_to_send.timeoutId = setTimeout(function() {self.resend(next_workers, job_to_send)}, 2000);
-	this.jobsSent.push(job_to_send);
+	if (!tries) this.jobsSent.push(job_to_send);
+	else this.updateJobsSent(job_to_send);
+}
+
+Worker.prototype.updateJobsSent = function(job) {
+	for (var i in this.jobsSent) {
+		if (job.job.id == this.jobsSent[i].job.id) {
+			this.jobsSent[i]=job;
+			return true;
+		}
+	}
+	return false;
 }
 
 Worker.prototype.resend = function(next_workers, job_to_send) {
-	logger.log("MicroService", "Worker", "No worker took the job, resending it");
+	if (this.active_log) logger.log("MicroService", "Worker", "No worker took the job, resending it");
 	clearTimeout(job_to_send.timeoutId);
+	job_to_send.timeoutId=null;
 	if (job_to_send.tries >= this.job_retry) {
-		logger.log("MicroService", "Worker", "Job Send " + this.job_retry + " times. Stopping", "ERROR");
+		if (this.active_log) logger.log("MicroService", "Worker", "Job Send " + this.job_retry + " times. Stopping", "ERROR");
 		return this.treatError({error: "Job send too many times"});
 	}
-	this.sendToNextWorker(next_workers, job_to_send.job.data, job_to_send.job.id, (job_to_send.tries+1));
+	this.sendToNextWorker(next_workers, job_to_send.job.data, job_to_send.job.workers_list_id, job_to_send.job.id, (job_to_send.tries+1));
 }
 
 Worker.prototype.receiveError = function(error) {
-	logger.log("MicroService", "Worker", "Receiving error: "+error, "ERROR");
+	if (this.active_log) logger.log("MicroService", "Worker", "Receiving error: "+error, "ERROR");
 	var e = JSON.parse(error);
 	if (e.target.id == this.id) {
-		logger.log("MicroService", "Worker", "Error is for this worker. Do something", "ERROR");
+		if (this.active_log) logger.log("MicroService", "Worker", "Error is for this worker. Do something", "ERROR");
 		this.clearJobTimeout(e.id, "ERROR");
 		this.treatError(error);
 	} else {
@@ -132,10 +155,11 @@ Worker.prototype.treatError = function(error) {
 }
 
 Worker.prototype.receiveNextJob = function(data) {
-	logger.log("MicroService", "Worker", "Receiving next job: "+data);
-	oData = JSON.parse(data);
-	if (this.nextJobForMe && oData.workers_list[0] == this.type) {
-		this.pub.publish("worker.next.ack", data);
+	var oData = JSON.parse(data);
+	if (this.nextJobForMe && oData.workers_list[oData.workers_list_id] == this.type) {
+		if (this.active_log) logger.log("MicroService", "Worker", "Receiving next job: "+data);
+		if (oData.workers_list.length > (oData.workers_list_id+1))  {oData.workers_list_id = (oData.workers_list_id+1);}
+		this.pub.publish("worker.next.ack", JSON.stringify(oData));
 		this.doJob(oData);
 	}
 }
@@ -146,17 +170,31 @@ Worker.prototype.doJob = function(data) {
 }
 
 Worker.prototype.receiveNextJobAck = function(data) {
-	logger.log("MicroService", "Worker", "Receiving next job Ack: "+data);
-	oData = JSON.parse(data);
-	this.clearJobTimeout(oData.id, "INFO");	
-	this.updateSameTypeWorkers();
+	var oData = JSON.parse(data);
+	if (oData.sender.id == this.id) {
+		if (this.active_log) logger.log("MicroService", "Worker", "Receiving next job Ack: "+data);
+		this.clearJobTimeout(oData.id, "INFO");	
+		this.deleteJobSent(oData);
+		this.updateSameTypeWorkers();
+	}
 }
 
 Worker.prototype.clearJobTimeout = function(jobId, LEVEL) {
 	for (var i in this.jobsSent) {
 		if (this.jobsSent[i].job.id == jobId) {
-			logger.log("MicroService", "Worker", "Job found. Deleting timeout: "+jobId, LEVEL);
+			if (this.active_log) logger.log("MicroService", "Worker", "Job found. Deleting timeout: "+jobId, LEVEL);
 			clearTimeout(this.jobsSent[i].timeoutId);
+			this.jobsSent[i].timeoutId = null;
+		}
+	}
+}
+
+Worker.prototype.deleteJobSent = function(job) {
+	for (var i in this.jobsSent) {
+		if (this.jobsSent[i].id = job.id) {
+			logger.log("MicroService", "Worker", "Deleting job :"+JSON.stringify(job));
+			this.jobsSent.splice(i, 1);
+			break;
 		}
 	}
 }
@@ -165,11 +203,11 @@ Worker.prototype.clearJobTimeout = function(jobId, LEVEL) {
 Worker.prototype.newWorker = function(worker) {
 	oWorker = JSON.parse(worker);
 	if (oWorker.type == this.type) {
-		logger.log("MicroService", "Worker", "New Worker add on the list of worker type "+this.type);
+		if (this.active_log) logger.log("MicroService", "Worker", "New Worker add on the list of worker type "+this.type+" : "+worker);
 		var size = this.sameTypeWorkers.push({worker: oWorker, isNext: false});
 		this.updateSameTypeWorkers();
 		if (this.sameTypeWorkers[0].worker.id == this.id && oWorker.id != this.id) {
-			logger.log("MicroService", "Worker", "First on the list, sending list to others");
+			if (this.active_log) logger.log("MicroService", "Worker", "First on the list, sending list to others");
 			this.pub.publish('worker.list', JSON.stringify(this.sameTypeWorkers));
 		}
 	}
@@ -178,7 +216,7 @@ Worker.prototype.newWorker = function(worker) {
 Worker.prototype.delWorker = function(worker) {
 	oWorker = JSON.parse(worker);
 	if (oWorker.type == this.type) {
-		logger.log("MicroService", "Worker", "Removing a worker on the list");
+		if (this.active_log) logger.log("MicroService", "Worker", "Removing a worker on the list");
 		for (var i in this.sameTypeWorkers) {
 			if (this.sameTypeWorkers[i].worker.id == oWorker.id) {
 				this.sameTypeWorkers.splice(i, 1);
@@ -190,7 +228,7 @@ Worker.prototype.delWorker = function(worker) {
 }
 
 Worker.prototype.updateWorkersList = function(workers_list) {
-	logger.log("MicroService", "Worker", "Updating Workers List");
+	if (this.active_log) logger.log("MicroService", "Worker", "Updating Workers List");
 	this.sameTypeWorkers = JSON.parse(workers_list);
 }
 
@@ -199,7 +237,7 @@ Worker.prototype.setNextJobForMe = function(forMe) {
 }
 
 Worker.prototype.updateSameTypeWorkers = function(position) {
-	logger.log("MicroService", "Worker", "UpdateSameTypeWorkers : "+position);
+	if (this.active_log) logger.log("MicroService", "Worker", "UpdateSameTypeWorkers : "+position);
 	if (position) {
 		for (var i in this.sameTypeWorkers) {
 			if (i == position) {
@@ -227,10 +265,10 @@ Worker.prototype.updateSameTypeWorkers = function(position) {
 }
 
 Worker.prototype.printSameTypeWorkers = function() {
-	logger.log("MicroService", "Worker", "--------------------------------------------------");
-	logger.log("MicroService", "Worker", "this.nextJobForMe: "+this.nextJobForMe);
+	if (this.active_log) logger.log("MicroService", "Worker", "--------------------------------------------------");
+	if (this.active_log) logger.log("MicroService", "Worker", "this.nextJobForMe: "+this.nextJobForMe);
 	for (var i in this.sameTypeWorkers) {
-		logger.log("MicroService", "Worker", JSON.stringify(this.sameTypeWorkers[i]));
+		if (this.active_log) logger.log("MicroService", "Worker", JSON.stringify(this.sameTypeWorkers[i]));
 	}
 }
 
