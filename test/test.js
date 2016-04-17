@@ -8,7 +8,7 @@ describe("Workers Methods", function() {
 	var type = "WA";
 	this.timeout(5000);
 	beforeEach(function(done) {
-		w = new Worker(type, true);
+		w = new Worker(type);
 		setTimeout(done, 1000);
 	});
 	afterEach(function(done) {

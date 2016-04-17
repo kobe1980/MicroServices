@@ -1,4 +1,6 @@
 {
 	"broker_url": "amqp://localhost",
-	"keepalive": 10000
+	"keepalive": 10000,
+	"SystemManager_log": true,
+	"Worker_log": true
 }

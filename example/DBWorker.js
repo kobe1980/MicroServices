@@ -2,7 +2,7 @@
 var Worker = require("../Worker.js");
 var logger = require("../logger.js");
 
-var DBW = new Worker("WB", true);
+var DBW = new Worker("WB");
 DBW.treatError = function(error) {
 	logger. log("MicroService", "Worker B - DB connector", "Error received");
 }

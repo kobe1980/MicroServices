@@ -6,7 +6,7 @@ var url = require('url');
 var querystring = require('querystring');
 var requests = Array();
 
-var RESTW = new Worker("WA", true);
+var RESTW = new Worker("WA");
 RESTW.treatError = function(error) {
 	logger. log("MicroService", "Worker A - REST connector", "Error received");
 	var oError = JSON.parse(error);
