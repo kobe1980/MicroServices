@@ -93,3 +93,5 @@ SystemManager.prototype.listenForJobRequest = function(request) {
 }
 
 var s = new SystemManager();
+
+module.exports = SystemManager; //export for test purpose
