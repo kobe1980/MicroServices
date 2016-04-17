@@ -10,8 +10,15 @@
 		"rabbit.js": "0.4.4",
 		"cli-color": "0.3.3"
 	},
+	"devDependencies": {
+		"mocha": "2.4.*",
+		"should": "8.3.*",
+		"istanbul": "0.4.3"
+	},
 	"scripts": {
-		"start": "node SystemManager.js"
+		"start": "node SystemManager.js",
+		"test": "node_modules/mocha/bin/mocha",
+		"coverage": "./node_modules/istanbul/lib/cli.js cover ./node_modules/mocha/bin/_mocha -- --ui bdd -R spec -t 5000"
 	},
 	"repository": {
 		"type": "git",
