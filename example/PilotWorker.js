@@ -2,7 +2,7 @@
 var Worker = require("../Worker.js");
 var logger = require("../logger.js");
 
-var PilotW = new Worker("WD");
+var PilotW = new Worker("WD", true);
 PilotW.treatError = function(error) {
 	logger. log("MicroService", "Worker D - Pilot Worker", "Error received");
 }

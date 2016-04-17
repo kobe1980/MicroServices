@@ -6,7 +6,7 @@ var url = require('url');
 var querystring = require('querystring');
 var requests = Array();
 
-var RESTW = new Worker("WA");
+var RESTW = new Worker("WA", true);
 RESTW.treatError = function(error) {
 	logger. log("MicroService", "Worker A - REST connector", "Error received");
 	var oError = JSON.parse(error);
@@ -29,7 +29,8 @@ var server = http.createServer(function(req, res) {
 	case 'POST':
 		var path = url.parse(req.url).pathname;
 		if (path == '/movies/') {
-			var resId = requests.push({req: req, res: res})-1;
+			var resId = requests.push({req: req, res: res});
+			resId--;
 			RESTW.sendToNextWorker(["WD"], {method: req.method, params: querystring.parse(url.parse(req.url).query), resId: resId});
 		} else send404(res);
 		break;
