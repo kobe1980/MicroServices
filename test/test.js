@@ -1,5 +1,6 @@
 var should = require('should');
 var Worker = require('../Worker.js');
+var SystemManager = require('../SystemManager.js');
 
 process.setMaxListeners(0);
 
@@ -148,7 +149,6 @@ describe("Workers Methods", function() {
 	});
 
 	it ("Should resend workers when asked to by SystemManager", function(done) {
-		var SystemManager = require('../SystemManager.js');
 		var s = new SystemManager();
 		setTimeout(function() {
 			var j = 0;
@@ -157,7 +157,137 @@ describe("Workers Methods", function() {
 			}
 			j.should.equal(1);
 			JSON.stringify(s.workers_list[w.id]).should.equal(JSON.stringify(w.getConfig()));
+			s.kill();
+			setTimeout(function() {
+				done();
+			}, 500);
+		}, 500);
+	});
+});
+
+describe("SystemManager Methods", function() {
+	var s;
+	this.timeout(5000);
+	beforeEach(function(done) {
+		s = new SystemManager();
+		setTimeout(function() {
 			done();
-		}, 100);
+		}, 500);
+	});
+
+	afterEach(function(done) {
+		s.kill();
+		setTimeout(function() {
+			s = null;
+			done();
+		}, 500);
+	});
+
+	it ("Should add worker when a new worker announce itself on the bus", function(done) {
+		var w = new Worker("WA");
+		setTimeout(function() {
+			var j = 0;
+			for (var i in s.workers_list) {
+				j++;
+			}
+			j.should.equal(1);
+			JSON.stringify(s.workers_list[w.id]).should.equal(JSON.stringify(w.getConfig()));
+			w.kill();
+			done();
+		}, 500);
+	});
+
+	it ("Should add a second worker when a new worker announce itself on the bus", function(done) {
+		var w = new Worker("WA");
+		var w2 = new Worker("WB");
+		setTimeout(function() {
+			var j = 0;
+			for (var i in s.workers_list) {
+				j++;
+			}
+			j.should.equal(2);
+			JSON.stringify(s.workers_list[w.id]).should.equal(JSON.stringify(w.getConfig()));
+			JSON.stringify(s.workers_list[w2.id]).should.equal(JSON.stringify(w2.getConfig()));
+			w.kill();
+			w2.kill();
+			done();
+		}, 500);
+	});
+
+	it ("Should remove a worker when it is killed", function(done) {
+		var w = new Worker("WA");
+		var w2 = new Worker("WB");
+		setTimeout(function() {
+			var j = 0;
+			for (var i in s.workers_list) {
+				j++;
+			}
+			j.should.equal(2);
+			JSON.stringify(s.workers_list[w.id]).should.equal(JSON.stringify(w.getConfig()));
+			JSON.stringify(s.workers_list[w2.id]).should.equal(JSON.stringify(w2.getConfig()));
+			w.kill();
+			setTimeout(function() {
+				var j = 0;
+				for (var i in s.workers_list) {
+					j++;
+				}
+				j.should.equal(1);
+				w2.kill();
+				done();
+			}, 500);
+		}, 500);
+	});
+
+	it ("Should return true when receving a job that can be done", function(done) {
+		var w = new Worker("WA");
+		var w2 = new Worker("WB");
+		setTimeout(function() {
+			s.listenForJobRequest({workers_list: ["WA"], workers_list_id: 0}).should.equal(true);
+			w.kill();
+			w2.kill();
+			done();
+		}, 500);
+	});
+
+	it ("Should return false when receving a job that can't be done", function(done) {
+		var w = new Worker("WA");
+		var w2 = new Worker("WB");
+		setTimeout(function() {
+			s.listenForJobRequest({workers_list: ["WC"], workers_list_id: 0}).should.equal(false);
+			w.kill();
+			w2.kill();
+			done();
+		}, 500);
+	});
+
+	it ("Should send an error back to the sender when a job that can't be done is sent", function(done) {
+		var w = new Worker("WA");
+		w.treatError = function(error) {
+			w.kill();
+			done();
+		}
+		setTimeout(function() {
+			w.sendToNextWorker(["WC"], "stuff to do");
+		}, 500);
+	});
+
+	it ("Should log out when asked to", function(done) {
+		var config = require('../config/config.json');
+		var context = require('rabbit.js').createContext(config.broker_url);
+		var pub = context.socket('PUB', {routing: 'topic'});
+		pub.connect('polling', function() {
+			pub.publish('worker.list', "Give Me the list");
+			setTimeout(function() {
+				//this test does nothing, but increase coverity, because it test a logging function
+				var w = new Worker("WA");
+				setTimeout(function() {
+					pub.publish('worker.list', "Give Me the list");
+					setTimeout(function() {
+						w.kill();
+						done();
+					}, 200);
+				}, 500);
+			}, 500);
+		});
 	});
 });
