@@ -19,7 +19,7 @@ RESTW.doJob = function(data) {
 	logger.log("MicroService", "Worker A - REST connector", "Job to do: "+JSON.stringify(data));
 	var response = requests[data.data.resId].res;
 	response.writeHead(200);
-	response.end(JSON.stringify(data.data.content));
+	response.end("time: "+(new Date().getTime()-data.data.time/1)+" "+JSON.stringify(data.data.content));
 	requests.splice(data.resId, 1);
 }
 
@@ -31,7 +31,7 @@ var server = http.createServer(function(req, res) {
 		if (path == '/movies/') {
 			var resId = requests.push({req: req, res: res});
 			resId--;
-			RESTW.sendToNextWorker(["WD"], {method: req.method, params: querystring.parse(url.parse(req.url).query), resId: resId});
+			RESTW.sendToNextWorker(["WD"], {method: req.method, params: querystring.parse(url.parse(req.url).query), resId: resId, time: new Date().getTime()});
 		} else send404(res);
 		break;
 	default: 
@@ -41,6 +41,7 @@ var server = http.createServer(function(req, res) {
 });
 
 function send404(res) {
+	logger.log("MicroService", "Worker A - REST connector", "Sending 404");
 	res.writeHead(404);
 	res.end();
 }
