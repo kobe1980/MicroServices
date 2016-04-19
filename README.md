@@ -112,4 +112,6 @@ By now, test coverage is:
  - Workers: 93,9%
  - SystemManager: 94,9%
 
+Tested with RabbitMQ bus on an AWS EC2 free instance. Response time for request with example: 400ms.
+
 > Written with [StackEdit](https://stackedit.io/).
