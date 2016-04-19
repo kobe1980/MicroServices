@@ -10,7 +10,7 @@ Every service is communicating throw the RabbitMQ broker.
 
 **Architecture overview**
 
-![Architecture](https://github.com/kobe1980/MicroServices/blob/master/doc/archi.png)
+![Architecture](https://raw.githubusercontent.com/kobe1980/MicroServices/master/doc/archi.png)
 
 **Components**
 
@@ -35,7 +35,7 @@ In my example, the REST worker receive the external message, send it to the Pilo
 
 *Workers* present them selves on the network by send a message on the channel "notifications", on the topic "worker.new". It allows the *SystemManager* and the other worker to discover it.
 By now, this message looks like this:
-> {"id":"WB1460306476102","type":"WB"}
+`{"id":"WB1460306476102","type":"WB"}`
 
 id is the ID of the worker. 
 Currently, it is composed of the type of the worker and the timestamp of creation of the worker.
@@ -72,24 +72,25 @@ If an ack is receive by the sender for a job he sent, he remove it from the list
 To create your own system you have to inherit a dedicated com from the *Worker* class
 Here an example of a DB Worker
 
-> // Child class of Worker dedicated to DB connection
-> var Worker = require("./Worker.js");
-> var logger = require("./logger.js");
-
-> var DBW = new Worker("WB");
-> DBW.treatError = function(error) {
->         logger. log("MicroService", "Worker B - DB connector", "Error received");
-> }
-
-> DBW.storeInDB = function(data) {
->         // DO Whatever
-> }
-
-> DBW.getFromDB = function() {
->         // DO Whatever
-> }
-
-*logger.js is a logger function to log on the console with colored syntax
+    // Child class of Worker dedicated to DB connection
+    var Worker = require("./Worker.js");
+    var logger = require("./logger.js");
+    
+    var DBW = new Worker("WB");
+    DBW.treatError = function(error) {
+            logger. log("MicroService", "Worker B - DB connector", "Error received");
+    }
+    
+    DBW.storeInDB = function(data) {
+            // DO Whatever
+    }
+    
+    DBW.getFromDB = function() {
+            // DO Whatever
+    }
+    
+    
+   logger.js is a logger function to log on the console with colored syntax
 
 **TODO**
 
