@@ -109,7 +109,7 @@ If an error occurs, the REST Worker will answer with HTTP 500 code.
 Tests are build with Mocha, Should and Istanbul for test coverage.
 By now, test coverage is:
 
- - Workers: 93%
- - SystemManager: 73%
+ - Workers: 93,9%
+ - SystemManager: 94,9%
 
 > Written with [StackEdit](https://stackedit.io/).
