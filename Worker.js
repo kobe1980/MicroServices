@@ -139,8 +139,8 @@ Worker.prototype.resend = function(next_workers, job_to_send) {
 }
 
 Worker.prototype.receiveError = function(error) {
-	if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Receiving error: "+error, "ERROR");
 	var e = this.compressor.deserialize(error);
+	if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Receiving error: "+JSON.stringify(e), "ERROR");
 	if (e.target.id == this.id) {
 		if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Error is for this worker. Do something", "ERROR");
 		this.clearJobTimeout(e.id, "ERROR");

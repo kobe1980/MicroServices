@@ -1,6 +1,8 @@
 var should = require('should');
 var Worker = require('../Worker.js');
 var SystemManager = require('../SystemManager.js');
+var Compressor = require('../Compressor.js');
+var compressor = new Compressor();
 
 process.setMaxListeners(0);
 
@@ -77,7 +79,7 @@ describe("Workers Methods", function() {
 			done();
 		}
 		w.sendToNextWorker(workers, data);
-		w.pub.publish("error", JSON.stringify({target: w.getConfig(), error: "No worker available for this job", id: w.jobsSent[0].id, data: "fake data"}));
+		w.pub.publish("error", compressor.serialize({target: w.getConfig(), error: "No worker available for this job", id: w.jobsSent[0].id, data: "fake data"}));
 	});
 
 	it ("Should call doJob when receiving a new job for it", function(done) {
@@ -94,7 +96,7 @@ describe("Workers Methods", function() {
 
 	it ("Should add a worker on the list if a new worker of the same type is announced", function(done) {
 		var worker = {id : "1234567", type: "WA"};
-		w.pub.publish("worker.new.send", JSON.stringify(worker));
+		w.pub.publish("worker.new.send", compressor.serialize(worker));
 		setTimeout(function() {
 			w.sameTypeWorkers.length.should.equal(2);
 			JSON.stringify(w.sameTypeWorkers[1].worker).should.equal(JSON.stringify(worker));
@@ -105,7 +107,7 @@ describe("Workers Methods", function() {
 
 	it ("Should not add a worker on the list if a new worker of another type is announced", function(done) {
 		var worker = {id : "1234567", type: "WB"};
-		w.pub.publish("worker.new.send", JSON.stringify(worker));
+		w.pub.publish("worker.new.send", compressor.serialize(worker));
 		setTimeout(function() {
 			w.sameTypeWorkers.length.should.equal(1);
 			done();
@@ -114,10 +116,10 @@ describe("Workers Methods", function() {
 
 	it ("Should remove a worker on the list if receive a del event", function(done) {
 		var worker = {id : "1234567", type: "WA"};
-		w.newWorker(JSON.stringify(worker));
+		w.newWorker(compressor.serialize(worker));
 		w.sameTypeWorkers.length.should.equal(2);
 		JSON.stringify(w.sameTypeWorkers[1].worker).should.equal(JSON.stringify(worker));
-		w.pub.publish("worker.del", JSON.stringify(worker));
+		w.pub.publish("worker.del", compressor.serialize(worker));
 		setTimeout(function() {
 			w.sameTypeWorkers.length.should.equal(1);
 			w.sameTypeWorkers[0].worker.id.should.equal(w.id);
