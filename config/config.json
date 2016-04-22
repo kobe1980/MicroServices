@@ -1,6 +1,7 @@
 {
-	"broker_url": "amqp://localhost",
+	"broker_url": "amqp://52.30.45.194",
 	"keepalive": 10000,
 	"SystemManager_log": true,
-	"Worker_log": true
+	"Worker_log": true,
+	"data_transfer_protocol": "msgpack"
 }

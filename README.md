@@ -48,16 +48,25 @@ As, the SystemManager can be launch after the workers, it can get the list of al
 
 The only configuration mandatory is the RabbitMQ connection URL. It is stored in the config/config.json file.
 You can add a keepalive key that allow the *SystemManager* to regularly ask for *Workers* list. If 0 or no entry, the keepalive is not done.
+For performance purpose, you can activate binary exchanges on the bus. See data_transfer_protocol.
 
     /**
 	* Config file for every worker 
 	* contains the information to connect to the broker
 	* broker_url: url of the broker system. Here RabbitMQ
+	* keepalive: frequency of keepalive made by SystemManager
+	* SystemManager_log: activate SystemManager logging
+	* Worker_log: activate Worker logging
+	* data_transfer_protocol: data compression type on the bus. 
+	*         Supported: JSON/BSON/MessagePack
 	* 
 	**/ 
 	{
 	"broker_url": "amqp://localhost",
-	"keepalive": 1000
+	"keepalive": 1000,
+	"SystemManager_log": true,
+        "Worker_log": true,
+        "data_transfer_protocol": "msgpack"
 	}
 
 

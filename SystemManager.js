@@ -1,5 +1,6 @@
 var logger = require('./logger.js');
 var config = require('./config/config.json');
+var Compressor = require('./Compressor.js');
 
 function SystemManager() {
 	this.id = "SM"+new Date().getTime();
@@ -12,6 +13,7 @@ function SystemManager() {
 	this.polling_sub;
 	this.pub;
 	this.timeoutId;
+	this.compressor = new Compressor();
 	var self=this;
 	if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+this.id, "Starting SystemManager");
 	this.context.on('ready', function() {
@@ -31,13 +33,13 @@ function SystemManager() {
        		self.notification_nextjob_sub.connect('notifications', 'worker.next', function() {
 			if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+self.id, "Connected to channel notifications, Next Job Topic");
 			self.notification_nextjob_sub.on('data', function(data) {
-				if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+self.id, "A new task is waiting for a worker: "+data);
-				var nJobData = JSON.parse(data);
+				var nJobData = self.compressor.deserialize(data);
+				if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+self.id, "A new task is waiting for a worker: "+JSON.stringify(nJobData));
 				if (self.listenForJobRequest(nJobData)) {
 					if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+self.id, "Next Job can be done by at least one worker");
 				} else {
 					if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+self.id, "No worker of the good type");
-					self.pub.publish('error', JSON.stringify({target: nJobData.sender, error: "No worker available for this job", id: nJobData.id, data: nJobData.data}));
+					self.pub.publish('error', self.compressor.serialize({target: nJobData.sender, error: "No worker available for this job", id: nJobData.id, data: nJobData.data}));
 				}
 			});	
 		});
@@ -77,8 +79,8 @@ SystemManager.prototype.kill = function() {
 }
 
 SystemManager.prototype.addWorker = function(worker) {
-	var rWorker = JSON.parse(worker);
-	if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+this.id, "New Worker in the list:" + worker);
+	var rWorker = this.compressor.deserialize(worker);
+	if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+this.id, "New Worker in the list:" + JSON.stringify(rWorker));
 	this.workers_list[rWorker.id] = rWorker;
 }
 
@@ -96,8 +98,8 @@ SystemManager.prototype.printWorkersList = function() {
 }
 
 SystemManager.prototype.delWorker = function(worker) {
-	if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+this.id, "removing worker " + worker + " from workers list");
-	var o = JSON.parse(worker);
+	var o = this.compressor.deserialize(worker);
+	if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+this.id, "removing worker " + JSON.stringify(o) + " from workers list");
 	delete this.workers_list[o.id];
 }
 
