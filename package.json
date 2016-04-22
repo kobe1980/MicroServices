@@ -1,6 +1,6 @@
 {
 	"name": "MicroServices",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"description": "a microservice architecture ready to use. Just use heritage on workers.",
 	"author": "kobe1980 <kobe1980@gmail.com>",
 	"bin": {
@@ -8,7 +8,10 @@
 	},
 	"dependencies": {
 		"rabbit.js": "0.4.4",
-		"cli-color": "0.3.3"
+		"cli-color": "0.3.3",
+		"simply-uuid": "1.0.1",
+		"bson": "0.4.23",
+		"msgpack5": "3.3.0"
 	},
 	"devDependencies": {
 		"mocha": "2.4.*",
