@@ -29,6 +29,10 @@
 	},
 	"keywords": [
 		"Microservices",
+		"Services",
+		"Job",
+		"Worker",
+		"Messages",
 		"RabbitMQ",
 		"Distributed architecture"
 	],

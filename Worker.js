@@ -163,7 +163,7 @@ Worker.prototype.receiveNextJob = function(data) {
 		if (nextId == this.id) {
 		//take it even if it's not the one who should
 			if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Receiving a job for this worker specificly");
-			this.activateJob(oData);
+			this.activateJob(oData, true);
 		}
 	} else {
 		if (this.nextJobForMe && nextId == this.type+":*") {
@@ -172,9 +172,10 @@ Worker.prototype.receiveNextJob = function(data) {
 	}
 }
 
-Worker.prototype.activateJob = function(oData) {
+Worker.prototype.activateJob = function(oData, ignoreUpdate) {
 	if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Receiving next job: "+JSON.stringify(oData));
 	if (oData.workers_list.length > (oData.workers_list_id+1))  {oData.workers_list_id = (oData.workers_list_id+1);}
+	if (ignoreUpdate) {oData.ignoreUpdate = ignoreUpdate;}
 	this.pub.publish("worker.next.ack", this.compressor.serialize(oData));
 	this.doJob(oData);
 }
@@ -192,7 +193,7 @@ Worker.prototype.receiveNextJobAck = function(data) {
 			this.clearJobTimeout(oData.id, "INFO");	
 			this.deleteJobSent(oData);
 		}
-		this.updateSameTypeWorkers();
+		if (!oData.ignoreUpdate) this.updateSameTypeWorkers();
 	}
 }
 
