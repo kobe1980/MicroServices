@@ -35,7 +35,7 @@ In my example, the REST worker receive the external message, send it to the Pilo
 
 *Workers* present them selves on the network by send a message on the channel "notifications", on the topic "worker.new". It allows the *SystemManager* and the other worker to discover it.
 By now, this message looks like this:
-`{"id":"WB1460306476102","type":"WB"}`
+`{"id":"WB:1460306476102","type":"WB"}`
 
 id is the ID of the worker. 
 Currently, it is composed of the type of the worker and the timestamp of creation of the worker.
@@ -122,6 +122,20 @@ By now, test coverage is:
  - Workers: 93,9%
  - SystemManager: 94,9%
 
-Tested with RabbitMQ bus on an AWS EC2 free instance. Response time for request with example: 400ms.
+Tested with the 3 workers in example directory and a bus on AWS EC2 micro instances. Response time < 90ms.
+
+**Release note:**
+
+ - 0.0.4: Update Worker id, so that you can now etheir send a job a any worker of the good type, or to a specific worker. 
+	 - To send a job to any worker, send to Worker_type:*
+	 - To send a job to a specific worker send to worker id
+
+Here is a sample of code:
+
+    // "Stuff to do" will be sent to any worker of type WD
+    Worker.sendToNextWorker(["WD:*"], {data: "Stuff to do"});
+    // "Stuff to do" will be sent to worker of type WD with id WA:1461679731775
+    Worker.sendToNextWorker(["WD:1461679731775"], {data: "Stuff to do"});
+      
 
 > Written with [StackEdit](https://stackedit.io/).

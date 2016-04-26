@@ -5,7 +5,7 @@ var Compressor = require('./Compressor.js');
 
 function Worker(type) {
 	this.type = type;
-	this.id = type+new Date().getTime();
+	this.id = type+":"+new Date().getTime();
 	if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Starting client - type: "+type+", id: "+this.id);
 	this.compressor = new Compressor();
 	this.pub;
@@ -157,12 +157,26 @@ Worker.prototype.treatError = function(error) {
 
 Worker.prototype.receiveNextJob = function(data) {
 	var oData = this.compressor.deserialize(data);
-	if (this.nextJobForMe && oData.workers_list[oData.workers_list_id] == this.type) {
-		if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Receiving next job: "+JSON.stringify(oData));
-		if (oData.workers_list.length > (oData.workers_list_id+1))  {oData.workers_list_id = (oData.workers_list_id+1);}
-		this.pub.publish("worker.next.ack", this.compressor.serialize(oData));
-		this.doJob(oData);
+	var nextId = oData.workers_list[oData.workers_list_id];
+	// Manage the case where the worker is directly reached. Specific format on workers_list
+	if (nextId.match(new RegExp(this.type+":[0-9]{13}"))) {
+		if (nextId == this.id) {
+		//take it even if it's not the one who should
+			if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Receiving a job for this worker specificly");
+			this.activateJob(oData);
+		}
+	} else {
+		if (this.nextJobForMe && nextId == this.type+":*") {
+			this.activateJob(oData);
+		}
 	}
+}
+
+Worker.prototype.activateJob = function(oData) {
+	if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Receiving next job: "+JSON.stringify(oData));
+	if (oData.workers_list.length > (oData.workers_list_id+1))  {oData.workers_list_id = (oData.workers_list_id+1);}
+	this.pub.publish("worker.next.ack", this.compressor.serialize(oData));
+	this.doJob(oData);
 }
 
 // Need to be surcharged by any child class

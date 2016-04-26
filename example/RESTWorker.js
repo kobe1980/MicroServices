@@ -30,7 +30,7 @@ var server = http.createServer(function(req, res) {
 		if (path == '/movies/') {
 			var uniqueId = uuid.generate();
 			requests[uniqueId] = {req: req, res: res};
-			RESTW.sendToNextWorker(["WD"], {method: req.method, params: querystring.parse(url.parse(req.url).query), resId: uniqueId, time: new Date().getTime()});
+			RESTW.sendToNextWorker(["WD:*"], {method: req.method, params: querystring.parse(url.parse(req.url).query), resId: uniqueId, time: new Date().getTime()});
 		} else send404(res);
 		break;
 	case 'POST':

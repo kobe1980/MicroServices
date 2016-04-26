@@ -27,7 +27,7 @@ describe("Workers Methods", function() {
 	
 	it("Should save job list on jobsSend", function(done) {
 		var data = "some data";
-		var workers = ["WA", "WB"];
+		var workers = ["WA:*", "WB:*"];
 		w.sendToNextWorker(workers, data);
 		w.jobsSent[0].job.workers_list.should.equal(workers);
 		w.jobsSent[0].job.data.should.equal(data);
@@ -38,7 +38,7 @@ describe("Workers Methods", function() {
 
 	it ("Should update JobsSent list when receiving job update", function(done) {
 		var content = "some data";
-		var workers = ["WA", "WB"];
+		var workers = ["WA:*", "WB:*"];
 		w.sendToNextWorker(workers, content);
 		var job_stored = w.jobsSent[0];
 		job_stored.job.data = "new data";
@@ -51,7 +51,7 @@ describe("Workers Methods", function() {
 	
 	it ("Should update try number when ask to resend a job", function(done) {
 		var data = "some data";
-		var workers = ["WA", "WB"];
+		var workers = ["WA:*", "WB:*"];
 		w.sendToNextWorker(workers, data);
 		w.resend(workers, w.jobsSent[0]);
 		w.jobsSent[0].tries.should.equal(2);
@@ -59,7 +59,7 @@ describe("Workers Methods", function() {
 	});
 
 	it ("Should return false when receiving an unknown job", function(done) {
-		var job = {job: {id: "123456"}, descr: {workers_list: ["WA", "WB"], sender: "123456"}};
+		var job = {job: {id: "123456"}, descr: {workers_list: ["WA:*", "WB:*"], sender: "123456"}};
 		w.updateJobsSent(job).should.equal(false);
 		done();
 	});
@@ -74,7 +74,7 @@ describe("Workers Methods", function() {
 */
 	it ("Should call treatError function when an error is received", function(done) {
 		var data = "some data";
-		var workers = ["WA", "WB"];
+		var workers = ["WA:*", "WB:*"];
 		w.treatError = function(error) {
 			done();
 		}
@@ -84,7 +84,7 @@ describe("Workers Methods", function() {
 
 	it ("Should call doJob when receiving a new job for it", function(done) {
 		var data = "some data";
-		var workers = ["WA", "WB"];
+		var workers = ["WA:*", "WB:*"];
 		w.doJob = function(data) {
 			setTimeout(function() {
 				w.jobsSent.length.should.equal(0);	
@@ -244,7 +244,7 @@ describe("SystemManager Methods", function() {
 		var w = new Worker("WA");
 		var w2 = new Worker("WB");
 		setTimeout(function() {
-			s.listenForJobRequest({workers_list: ["WA"], workers_list_id: 0}).should.equal(true);
+			s.listenForJobRequest({workers_list: ["WA:*"], workers_list_id: 0}).should.equal(true);
 			w.kill();
 			w2.kill();
 			done();
@@ -255,7 +255,7 @@ describe("SystemManager Methods", function() {
 		var w = new Worker("WA");
 		var w2 = new Worker("WB");
 		setTimeout(function() {
-			s.listenForJobRequest({workers_list: ["WC"], workers_list_id: 0}).should.equal(false);
+			s.listenForJobRequest({workers_list: ["WC:*"], workers_list_id: 0}).should.equal(false);
 			w.kill();
 			w2.kill();
 			done();
@@ -269,7 +269,7 @@ describe("SystemManager Methods", function() {
 			done();
 		}
 		setTimeout(function() {
-			w.sendToNextWorker(["WC"], "stuff to do");
+			w.sendToNextWorker(["WC:*"], "stuff to do");
 		}, 500);
 	});
 

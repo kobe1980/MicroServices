@@ -104,9 +104,19 @@ SystemManager.prototype.delWorker = function(worker) {
 }
 
 SystemManager.prototype.listenForJobRequest = function(request) {
-	var requestType = request.workers_list[request.workers_list_id];
-	for (var i in this.workers_list) {
-		if (this.workers_list[i].type == requestType) return true;
+	var nextId = request.workers_list[request.workers_list_id];
+	if (nextId.match(/.+:[0-9]{13}/)) {
+		for (var i in this.workers_list) {
+			if (this.workers_list[i].id == nextId) return true;
+		}
+	} else {
+		var m = nextId.match(/(.+):\*/)
+		if (m.length>1) {
+			for (var i in this.workers_list) {
+				if (this.workers_list[i].type == m[1]) return true;
+			}
+		}
+
 	}
 	return false;
 }
