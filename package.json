@@ -1,6 +1,6 @@
 {
 	"name": "MicroServices",
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"description": "a microservice architecture ready to use. Just use heritage on workers.",
 	"author": "kobe1980 <kobe1980@gmail.com>",
 	"bin": {

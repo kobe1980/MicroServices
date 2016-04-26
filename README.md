@@ -126,7 +126,7 @@ Tested with the 3 workers in example directory and a bus on AWS EC2 micro instan
 
 **Release note:**
 
- - 0.0.4: Update Worker id, so that you can now etheir send a job a any worker of the good type, or to a specific worker. 
+ - 0.0.5: Update Worker id, so that you can now etheir send a job a any worker of the good type, or to a specific worker. 
 	 - To send a job to any worker, send to Worker_type:*
 	 - To send a job to a specific worker send to worker id
 
