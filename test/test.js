@@ -64,14 +64,17 @@ describe("Workers Methods", function() {
 		done();
 	});
 
-/*	it ("Should clear the timeout when asked to", function(done) {
+	it ("Should clear the timeout when asked to", function(done) {
 		var data = "some data";
-		var workers = ["WA", "WB"];
+		var workers = ["WC:*", "WB:*"];
 		w.sendToNextWorker(workers, data);
-		w.clearJobTimeout(w.jobsSent[0].id);
-		w.jobsSent[0].timeoutId.should.be.null();
+		setTimeout(function() {
+			w.clearJobTimeout(w.jobsSent[0].job.id);
+			should.not.exist(w.jobsSent[0].timeoutId);
+			done();
+		}, 100);
 	});
-*/
+
 	it ("Should call treatError function when an error is received", function(done) {
 		var data = "some data";
 		var workers = ["WA:*", "WB:*"];

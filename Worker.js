@@ -209,7 +209,7 @@ Worker.prototype.clearJobTimeout = function(jobId, LEVEL) {
 
 Worker.prototype.deleteJobSent = function(job) {
 	for (var i in this.jobsSent) {
-		if (this.jobsSent[i].id = job.id) {
+		if (this.jobsSent[i].job.id == job.id) {
 			if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Deleting job :"+JSON.stringify(job));
 			this.jobsSent.splice(i, 1);
 			break;
