@@ -3,6 +3,7 @@ var Worker = require('../Worker.js');
 var SystemManager = require('../SystemManager.js');
 var Compressor = require('../Compressor.js');
 var compressor = new Compressor();
+var fs = require('fs');
 
 process.setMaxListeners(0);
 
@@ -296,3 +297,61 @@ describe("SystemManager Methods", function() {
 		});
 	});
 });
+
+var savedConfig;
+describe("Compressor Methods", function() {
+	before(function(done) {
+		fs.readFile('config/config.json', function(err, data) {
+			savedConfig = data;
+			done();
+		});
+	});
+	after(function(done) {
+		fs.writeFile('config/config.json', savedConfig, function(err) {
+			if (!err) done();
+			else console.log('Error writing file: '+err);
+		});
+	});
+	it ("Should compress and uncompress data using BSON", function(done) {
+		setConfig("BSON", function(err) {
+			compressor = new Compressor();
+			console.log(JSON.stringify(require('../config/config.json')));
+			var data = {data: "tests"};
+			var compressed_data = compressor.serialize(data);
+			compressed_data.should.not.equal(data);
+			var uncompressed_data = compressor.deserialize(compressed_data);
+			JSON.stringify(uncompressed_data).should.equal(JSON.stringify(data));
+			done();
+		});
+		
+	});
+	it ("Should compress and uncompress data using MSGPACK", function(done) {
+		setConfig("msgpack", function(err) {
+			compressor = new Compressor();
+			var data = {data: "tests"};
+			var compressed_data = compressor.serialize(data);
+			compressed_data.should.not.equal(data);
+			var uncompressed_data = compressor.deserialize(compressed_data);
+			JSON.stringify(uncompressed_data).should.equal(JSON.stringify(data));
+			done();
+		});
+	});
+	it ("Should compress and uncompress data using JSON", function(done) {
+		setConfig("JSON", function(err) {
+			compressor = new Compressor();
+			var data = {data: "tests"};
+			var compressed_data = compressor.serialize(data);
+			compressed_data.should.not.equal(data);
+			var uncompressed_data = compressor.deserialize(compressed_data);
+			JSON.stringify(uncompressed_data).should.equal(JSON.stringify(data));
+			done();
+		});
+	});
+});
+
+function setConfig(compression, callback) {
+	var configContent="{\n\t\"broker_url\": \"amqp://localhost\",\n\t\"keepalive\": 10000,\n\t\"SystemManager_log\": true,\n\t\"Worker_log\": true,\n\t\"data_transfer_protocol\": \""+compression+"\"\n\t\"test\":\"this is a test content\"\n}";
+	fs.writeFile('config/config.json', configContent, function(err) {
+		return callback(err);
+	});
+}
