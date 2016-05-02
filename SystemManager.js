@@ -111,7 +111,7 @@ SystemManager.prototype.listenForJobRequest = function(request) {
 		}
 	} else {
 		var m = nextId.match(/(.+):\*/)
-		if (m.length>1) {
+		if (m && m.length>1) {
 			for (var i in this.workers_list) {
 				if (this.workers_list[i].type == m[1]) return true;
 			}
