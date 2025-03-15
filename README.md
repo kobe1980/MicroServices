@@ -193,6 +193,208 @@ The metrics dashboard provides:
 - Expand metrics collection for additional service types
 - Add more detailed Grafana dashboards
 
+## Deploying to AWS Production Environment
+
+This section covers how to deploy the MicroServices application in a production environment on AWS.
+
+### Prerequisites
+
+- AWS account with appropriate IAM permissions
+- AWS CLI installed and configured
+- Docker and Docker Compose installed locally
+- Basic knowledge of AWS services (EC2, ECS, VPC, etc.)
+
+### Deployment Options
+
+There are several approaches to deploying the MicroServices project on AWS:
+
+#### Option 1: EC2 Instances with Docker Compose
+
+The simplest approach is to launch EC2 instances and run the application using Docker Compose.
+
+1. **Launch an EC2 instance**
+   - Use Amazon Linux 2 or Ubuntu Server (recommended: t3.medium or larger)
+   - Ensure security groups allow necessary ports (5672, 15672 for RabbitMQ; 8080 for REST worker; 9090, 9091, 3000 for monitoring)
+
+2. **Install Docker and Docker Compose**
+   ```bash
+   # For Amazon Linux 2
+   sudo yum update -y
+   sudo amazon-linux-extras install docker -y
+   sudo service docker start
+   sudo usermod -a -G docker ec2-user
+   sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   
+   # For Ubuntu
+   sudo apt update
+   sudo apt install -y docker.io docker-compose
+   sudo usermod -a -G docker ubuntu
+   ```
+
+3. **Clone the repository and deploy**
+   ```bash
+   git clone https://github.com/kobe1980/MicroServices.git
+   cd MicroServices
+   
+   # Update config/config.json to use RabbitMQ container hostname
+   # e.g., "broker_url": "amqp://admin:adminpassword@rabbitmq:5672"
+   
+   # Start the services
+   docker-compose up -d
+   ```
+
+4. **Configure CloudWatch for logs (optional)**
+   ```bash
+   # Install CloudWatch agent
+   sudo yum install -y amazon-cloudwatch-agent
+   
+   # Configure Docker logs to forward to CloudWatch
+   sudo vi /etc/docker/daemon.json
+   # Add the following:
+   {
+     "log-driver": "awslogs",
+     "log-opts": {
+       "awslogs-region": "your-aws-region",
+       "awslogs-group": "microservices"
+     }
+   }
+   
+   # Restart Docker
+   sudo service docker restart
+   ```
+
+#### Option 2: AWS ECS (Elastic Container Service)
+
+For production workloads, AWS ECS provides better scaling and management capabilities.
+
+1. **Create ECR Repositories**
+   - Create a repository for each microservice
+   ```bash
+   aws ecr create-repository --repository-name microservices/system-manager
+   aws ecr create-repository --repository-name microservices/rest-worker
+   aws ecr create-repository --repository-name microservices/pilot-worker
+   aws ecr create-repository --repository-name microservices/db-worker
+   ```
+
+2. **Build and push Docker images**
+   ```bash
+   # Login to ECR
+   aws ecr get-login-password --region your-region | docker login --username AWS --password-stdin your-account-id.dkr.ecr.your-region.amazonaws.com
+   
+   # Build and tag images (example for SystemManager)
+   docker build -t your-account-id.dkr.ecr.your-region.amazonaws.com/microservices/system-manager:latest .
+   
+   # Push images
+   docker push your-account-id.dkr.ecr.your-region.amazonaws.com/microservices/system-manager:latest
+   ```
+
+3. **Create ECS Cluster**
+   - Use the AWS Console or CLI to create an ECS cluster
+   - Choose between EC2 or Fargate launch types based on your requirements
+
+4. **Create Task Definitions**
+   - Create separate task definitions for each component:
+     - RabbitMQ
+     - SystemManager
+     - Each Worker type
+     - Prometheus and Grafana (optional)
+
+5. **Configure Service Discovery**
+   - Use AWS Cloud Map or service discovery in ECS to enable components to find each other
+
+6. **Deploy Services**
+   - Create ECS services for each component
+   - Configure appropriate scaling policies
+
+#### Option 3: AWS EKS (Kubernetes)
+
+For more complex deployments with Kubernetes:
+
+1. **Create an EKS cluster**
+   ```bash
+   eksctl create cluster --name microservices-cluster --region your-region --node-type t3.medium --nodes 3
+   ```
+
+2. **Convert docker-compose.yml to Kubernetes manifests**
+   - Use tools like Kompose or manually create Kubernetes YAML files
+   - Create deployments, services, and configmaps
+
+3. **Deploy to EKS**
+   ```bash
+   kubectl apply -f kubernetes/
+   ```
+
+### Required AWS Resources
+
+1. **Networking**
+   - VPC with public and private subnets
+   - Security groups for each component
+   - Load balancer for REST Worker (ALB recommended)
+
+2. **Compute**
+   - EC2 instances or ECS/EKS for container orchestration
+   - Auto-scaling groups for scalability
+
+3. **Data Storage**
+   - EBS volumes for RabbitMQ persistence
+   - S3 for log archival
+
+4. **Monitoring**
+   - CloudWatch for logs and metrics
+   - Amazon Managed Grafana (optional)
+   - CloudWatch alarms for critical metrics
+
+### High Availability Configuration
+
+For production deployments, ensure high availability by:
+
+1. **RabbitMQ Cluster**
+   - Deploy a 3-node RabbitMQ cluster across availability zones
+   - Use RabbitMQ's mirrored queues or quorum queues for message replication
+
+2. **Redundant Workers**
+   - Deploy multiple instances of each worker type
+   - Enable auto-scaling based on load
+
+3. **Multi-AZ Deployment**
+   - Distribute components across multiple availability zones
+
+### Security Considerations
+
+1. **Network Security**
+   - Place RabbitMQ in private subnets
+   - Use security groups to restrict access
+   - Enable TLS for RabbitMQ connections
+
+2. **Authentication**
+   - Use AWS Secrets Manager for RabbitMQ credentials
+   - Configure strong passwords for all components
+
+3. **Data Protection**
+   - Encrypt data at rest (EBS volumes)
+   - Encrypt data in transit (TLS for RabbitMQ)
+
+### Monitoring and Operations
+
+1. **Use CloudWatch for logs and metrics**
+   - Forward Docker logs to CloudWatch
+   - Create custom metrics from Prometheus
+
+2. **Set up alarms for critical events**
+   - Worker disconnect events
+   - High message queue depth
+   - Error rate thresholds
+
+3. **Create dashboard for system overview**
+   - Combine CloudWatch and Grafana metrics
+
+### Cost Optimization
+
+1. **Use spot instances for workers** (when possible)
+2. **Configure auto-scaling to match demand**
+3. **Use appropriate instance sizes based on workload**
+
 **Example**
 
 In the example, you can find a REST Worker, accepting connexion on port 8080.
