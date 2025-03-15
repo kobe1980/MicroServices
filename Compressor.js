@@ -5,8 +5,8 @@ function Compressor() {
 	this.msgpack;
 	switch (config.data_transfer_protocol) {
 		case "BSON":
-			var bson = require('bson');
-			this.BSON = new bson.BSONPure.BSON();
+			const bson = require('bson');
+			this.BSON = bson;
 			this.serialize = this.BSONserialize;
 			this.deserialize = this.BSONdeserialize;
 			break;
@@ -23,11 +23,11 @@ function Compressor() {
 }
 
 Compressor.prototype.BSONserialize = function(data) {
-	return this.BSON.serialize(data, false, true, false);
+	return this.BSON.serialize(data);
 }
 
 Compressor.prototype.BSONdeserialize = function(data) {
-	return this.BSON.deserialize(data);
+	return this.BSON.deserialize(Buffer.isBuffer(data) ? data : Buffer.from(data));
 }
 
 Compressor.prototype.MSGPACKserialize = function(data) {

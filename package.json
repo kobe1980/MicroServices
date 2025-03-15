@@ -7,21 +7,21 @@
 		"run": "./SystemManager.js"
 	},
 	"dependencies": {
+		"bson": "^6.10.3",
+		"cli-color": "^2.0.4",
+		"msgpack5": "^6.0.2",
 		"rabbit.js": "0.4.4",
-		"cli-color": "0.3.3",
-		"simply-uuid": "1.0.1",
-		"bson": "0.4.23",
-		"msgpack5": "3.3.0"
+		"simply-uuid": "^1.0.1"
 	},
 	"devDependencies": {
-		"mocha": "2.4.*",
-		"should": "8.3.*",
-		"istanbul": "0.4.3"
+		"mocha": "^11.1.0",
+		"nyc": "^17.1.0",
+		"should": "^13.2.3"
 	},
 	"scripts": {
 		"start": "node SystemManager.js",
-		"test": "node_modules/mocha/bin/mocha",
-		"coverage": "./node_modules/istanbul/lib/cli.js cover ./node_modules/mocha/bin/_mocha -- --ui bdd -R spec -t 5000"
+		"test": "mocha",
+		"coverage": "nyc --reporter=html --reporter=text mocha --ui bdd --reporter spec --timeout 5000"
 	},
 	"repository": {
 		"type": "git",
