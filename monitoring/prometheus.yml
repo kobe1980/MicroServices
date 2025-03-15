@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Load and evaluate rules in this file every 'evaluation_interval' seconds.
+rule_files:
+  # - "first.rules"
+  # - "second.rules"
+
+# A scrape configuration containing exactly one endpoint to scrape.
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'system-manager'
+    static_configs:
+      - targets: ['system-manager:9091']
+        labels:
+          service: 'system-manager'
+
+  - job_name: 'rest-worker'
+    static_configs:
+      - targets: ['rest-worker:9091']
+        labels:
+          service: 'rest-worker'
+
+  - job_name: 'pilot-worker'
+    static_configs:
+      - targets: ['pilot-worker:9091']
+        labels:
+          service: 'pilot-worker'
+
+  - job_name: 'db-worker'
+    static_configs:
+      - targets: ['db-worker:9091']
+        labels:
+          service: 'db-worker'
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+        labels:
+          service: 'rabbitmq'

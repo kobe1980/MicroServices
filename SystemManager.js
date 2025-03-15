@@ -1,6 +1,7 @@
 var logger = require('./logger.js');
 var config = require('./config/config.json');
 var Compressor = require('./Compressor.js');
+var metrics = require('./metrics.js').initMetrics('system-manager');
 
 function SystemManager() {
 	this.id = "SM"+new Date().getTime();
@@ -36,12 +37,21 @@ function SystemManager() {
 			self.notification_nextjob_sub.on('data', function(data) {
 				var nJobData = self.compressor.deserialize(data);
 				if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+self.id, "A new task is waiting for a worker: "+JSON.stringify(nJobData));
+				
+				// Record metrics
+				metrics.recordMessageReceived('job_request');
+				const timer = metrics.startJobTimer('job_validation');
+				
 				if (self.listenForJobRequest(nJobData)) {
 					if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+self.id, "Next Job can be done by at least one worker");
 				} else {
 					if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+self.id, "No worker of the good type");
 					self.pub.publish('error', self.compressor.serialize({target: nJobData.sender, error: "No worker available for this job", id: nJobData.id, data: nJobData.data}));
+					metrics.recordError('no_worker_available');
 				}
+				
+				// End the timer
+				timer();
 			});	
 		});
 		self.notification_delworker_sub = self.context.socket('SUB', {routing: 'topic'});
@@ -83,10 +93,15 @@ SystemManager.prototype.addWorker = function(worker) {
 	var rWorker = this.compressor.deserialize(worker);
 	if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+this.id, "New Worker in the list:" + JSON.stringify(rWorker));
 	this.workers_list[rWorker.id] = rWorker;
+	
+	// Update metrics
+	this.updateWorkerMetrics();
+	metrics.recordMessageReceived('worker_registration');
 }
 
 SystemManager.prototype.keepAlive = function() {
 	this.pub.publish('worker.getAll', "Hi workers, tell me who's online");
+	metrics.recordMessageSent('keepalive');
 }
 	
 SystemManager.prototype.printWorkersList = function() {
@@ -96,12 +111,46 @@ SystemManager.prototype.printWorkersList = function() {
 	}
 	if (i == undefined) 
 		if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+this.id, "Empty set.");		
+		
+	// Update metrics
+	this.updateWorkerMetrics();
+	metrics.recordMessageReceived('workers_list_request');
 }
 
 SystemManager.prototype.delWorker = function(worker) {
 	var o = this.compressor.deserialize(worker);
 	if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+this.id, "removing worker " + JSON.stringify(o) + " from workers list");
 	delete this.workers_list[o.id];
+	
+	// Update metrics
+	this.updateWorkerMetrics();
+	metrics.recordMessageReceived('worker_deletion');
+}
+
+// Helper method to update worker metrics
+SystemManager.prototype.updateWorkerMetrics = function() {
+	// Count workers by type
+	const workerTypes = {};
+	
+	// Count total workers
+	let totalWorkers = 0;
+	
+	for (var i in this.workers_list) {
+		const worker = this.workers_list[i];
+		if (!workerTypes[worker.type]) {
+			workerTypes[worker.type] = 0;
+		}
+		workerTypes[worker.type]++;
+		totalWorkers++;
+	}
+	
+	// Update metrics for each worker type
+	for (const type in workerTypes) {
+		metrics.setWorkerCount(type, workerTypes[type]);
+	}
+	
+	// Set total connected workers
+	metrics.setConnectedWorkers(totalWorkers);
 }
 
 SystemManager.prototype.listenForJobRequest = function(request) {
