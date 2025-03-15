@@ -6,7 +6,8 @@ function SystemManager() {
 	this.id = "SM"+new Date().getTime();
 	if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+this.id, "Starting server");
 	this.workers_list = Array();
-	this.context = require('rabbit.js').createContext(config.broker_url);
+	const rabbitAdapter = require('./RabbitAdapter');
+	this.context = rabbitAdapter.createContext(config.broker_url);
 	this.notification_newworker_sub;
 	this.notification_delworker_sub;
 	this.notification_nextjob_sub;

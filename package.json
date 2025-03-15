@@ -7,10 +7,10 @@
 		"run": "./SystemManager.js"
 	},
 	"dependencies": {
+		"amqplib": "^0.10.5",
 		"bson": "^6.10.3",
 		"cli-color": "^2.0.4",
 		"msgpack5": "^6.0.2",
-		"rabbit.js": "0.4.4",
 		"simply-uuid": "^1.0.1"
 	},
 	"devDependencies": {

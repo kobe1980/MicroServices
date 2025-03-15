@@ -22,7 +22,8 @@ function Worker(type) {
 	this.sameTypeWorkers = Array();
 
 	var self=this;
-	this.context = require('rabbit.js').createContext(config.broker_url);
+	const rabbitAdapter = require('./RabbitAdapter');
+	this.context = rabbitAdapter.createContext(config.broker_url);
 	this.context.on('ready', function() {
   		self.pub = self.context.socket('PUB', {routing: 'topic'});
 		self.notifications_error_sub = self.context.socket('SUB', {routing: 'topic'});
