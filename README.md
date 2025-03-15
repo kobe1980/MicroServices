@@ -423,6 +423,26 @@ Specific test suites:
  - Integration tests for metrics collection
  - Worker and SystemManager metrics instrumentation tests
 
+### Compressor Module Testing
+
+The Compressor module has comprehensive test coverage (96.42%) with tests for:
+
+- Different serialization formats:
+  - JSON (default format)
+  - BSON (Binary JSON for complex data)
+  - MessagePack (efficient binary serialization)
+
+- Testing strategies:
+  - Direct method testing for all serialization/deserialization functions
+  - Protocol switching via configuration
+  - Edge case handling for various data types
+  - Buffer and non-Buffer input handling
+  - Unicode and special character support
+
+- Mock testing:
+  - Protocol implementations mocked for complete branch coverage
+  - Serializer/deserializer function mocking with Sinon
+
 Run the tests with:
 ```bash
 # Run all tests
@@ -441,6 +461,12 @@ npm run coverage:metrics
 Tested with the 3 workers in example directory and a bus on AWS EC2 micro instances. Response time < 90ms.
 
 **Release notes:**
+
+ - 0.0.10: Enhanced test coverage and documentation
+   - Improved Compressor.js test coverage to over 96% 
+   - Added comprehensive tests for all serialization formats
+   - Added AWS deployment documentation for production environments
+   - Extended documentation for test coverage details
 
  - 0.0.9: Added monitoring capabilities and improved worker instrumentation
    - Added Prometheus metrics collection and monitoring
