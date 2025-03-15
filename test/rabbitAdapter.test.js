@@ -61,6 +61,22 @@ describe('RabbitAdapter', function() {
       
       sinon.assert.calledWith(amqpMock.connect, 'amqp://test-host');
     });
+    
+    it('should handle connection errors in context creation', async function() {
+      amqpMock.connect.rejects(new Error('Context creation error'));
+      
+      // Create context - this should not throw despite the error
+      const context = rabbitAdapter.createContext('amqp://test-host');
+      
+      // Wait for error handling to occur
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Just verify that an error was logged
+      assert(loggerMock.log.called, 'Error should be logged');
+      
+      // Reset for other tests
+      amqpMock.connect.resolves(mockConnection);
+    });
   });
   
   describe('Context', function() {
@@ -112,6 +128,36 @@ describe('RabbitAdapter', function() {
       sinon.assert.calledWith(
         loggerMock.log,
         'RabbitAdapter', 'Connection', 'Failed to connect: Connection failed', 'ERROR'
+      );
+      
+      // Reset for other tests
+      amqpMock.connect.resolves(mockConnection);
+    });
+    
+    it('should handle connection error events', async function() {
+      // Create a new connection and trigger an error event
+      const newConnection = {
+        createChannel: sinon.stub().resolves(mockChannel),
+        on: sinon.stub().callsFake((event, callback) => {
+          if (event === 'error') {
+            // Call the error handler immediately to simulate an error
+            callback(new Error('Connection error event'));
+          }
+        })
+      };
+      
+      amqpMock.connect.resolves(newConnection);
+      
+      // Create a new context and connect
+      const context = rabbitAdapter.createContext('amqp://test-host');
+      
+      // Wait for connection initialization to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Verify error was logged
+      sinon.assert.calledWith(
+        loggerMock.log,
+        'RabbitAdapter', 'Connection', 'Connection error: Connection error event', 'ERROR'
       );
       
       // Reset for other tests
@@ -206,6 +252,38 @@ describe('RabbitAdapter', function() {
       assert.throws(() => {
         pubSocket.publish('test.topic', 'test message');
       }, /Socket not connected to any exchange/);
+    });
+    
+    it('should handle connection errors in socket.connect', async function() {
+      // Setup mock to throw an error when assertExchange is called
+      mockChannel.assertExchange.rejects(new Error('Socket connection error'));
+      
+      try {
+        await pubSocket.connect('test-exchange', 'test.topic', sinon.stub());
+        // Should not reach here
+        assert.fail('Should have thrown an error');
+      } catch (error) {
+        assert.strictEqual(error.message, 'Socket connection error');
+        // Verify error was logged
+        sinon.assert.calledWith(
+          loggerMock.log,
+          'RabbitAdapter', 'Socket', 'Error connecting socket: Socket connection error', 'ERROR'
+        );
+      }
+      
+      // Reset the mock for other tests
+      mockChannel.assertExchange.resolves({});
+    });
+    
+    it('should end the socket properly', function() {
+      const closeSpy = sinon.spy(pubSocket, 'close');
+      
+      pubSocket.end();
+      
+      sinon.assert.calledOnce(closeSpy);
+      
+      // Restore original method
+      closeSpy.restore();
     });
   });
 });

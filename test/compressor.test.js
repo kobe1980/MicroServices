@@ -86,4 +86,35 @@ describe('Compressor Basic Tests', function() {
     
     assert.deepStrictEqual(deserialized, complexData);
   });
+  
+  it('should handle the protobuf case in the constructor', function() {
+    // Temporarily modify config to test protobuf case
+    const config = require('../config/config.json');
+    const originalProtocol = config.data_transfer_protocol;
+    
+    try {
+      // Load a fresh instance of config
+      delete require.cache[require.resolve('../config/config.json')];
+      const modifiedConfig = require('../config/config.json');
+      
+      // Modify in memory for this test only
+      modifiedConfig.data_transfer_protocol = 'protobuf';
+      
+      // Create a new compressor which should hit the protobuf case
+      const compressorModule = require('../Compressor');
+      const comp = new compressorModule();
+      
+      // Test basic serialization works (should use default JSON)
+      const data = { test: 'data' };
+      const serialized = comp.serialize(data);
+      const deserialized = comp.deserialize(serialized);
+      
+      assert.deepStrictEqual(deserialized, data);
+      
+    } finally {
+      // Cleanup - restore original value
+      delete require.cache[require.resolve('../config/config.json')];
+      delete require.cache[require.resolve('../Compressor.js')];
+    }
+  });
 });
