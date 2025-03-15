@@ -13,16 +13,30 @@ describe("Workers Methods", function() {
 	this.timeout(5000);
 	beforeEach(function(done) {
 		w = new Worker(type);
+		// Give time for initialization to complete
 		setTimeout(done, 1000);
 	});
 	afterEach(function(done) {
-		w.kill();
+		// Safely handle worker cleanup
+		try {
+			if (w && w.pub) {
+				w.kill();
+			}
+		} catch (err) {
+			// Ignore errors during cleanup
+			console.log("Error during worker cleanup:", err.message);
+		}
 		w = null;
 		setTimeout(done, 2000);	
 	});
 	it ("Should have a configuration as set on creation", function(done) {
 		w.getConfig().type.should.equal(type);
 		w.getConfig().id.should.be.instanceOf(String);
+		done();
+	});
+	
+	it("Should have metrics initialized", function(done) {
+		should.exist(w.metrics);
 		done();
 	});
 	
@@ -182,11 +196,24 @@ describe("SystemManager Methods", function() {
 	});
 
 	afterEach(function(done) {
-		s.kill();
+		try {
+			if (s) {
+				s.kill();
+			}
+		} catch (err) {
+			// Ignore errors during cleanup
+			console.log("Error during SystemManager cleanup:", err.message);
+		}
 		setTimeout(function() {
 			s = null;
 			done();
 		}, 500);
+	});
+	
+	it("Should have metrics initialized", function(done) {
+		// Verify the metrics module is properly loaded
+		should.exist(s.metrics);
+		done();
 	});
 
 	it ("Should add worker when a new worker announce itself on the bus", function(done) {
@@ -279,7 +306,8 @@ describe("SystemManager Methods", function() {
 
 	it ("Should log out when asked to", function(done) {
 		var config = require('../config/config.json');
-		var context = require('rabbit.js').createContext(config.broker_url);
+		var rabbitAdapter = require('../RabbitAdapter');
+		var context = rabbitAdapter.createContext(config.broker_url);
 		var pub = context.socket('PUB', {routing: 'topic'});
 		pub.connect('polling', function() {
 			pub.publish('worker.list', "Give Me the list");

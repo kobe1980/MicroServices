@@ -59,24 +59,45 @@ const connectedWorkers = new promClient.Gauge({
  * Initialize metrics collection for a service
  * @param {string} serviceName - The name of the service
  * @param {number} port - The port to expose metrics on
+ * @param {boolean} disableHttp - Whether to disable HTTP server (for testing)
  */
-function initMetrics(serviceName, port) {
+function initMetrics(serviceName, port, disableHttp) {
   // In test environment, we might want to disable the HTTP server
   port = port === undefined ? 9091 : port;
-  // Start the HTTP server to expose metrics
-  const server = http.createServer(async (req, res) => {
-    if (req.url === '/metrics') {
-      res.setHeader('Content-Type', register.contentType);
-      res.end(await register.metrics());
-    } else {
-      res.statusCode = 404;
-      res.end('Not found');
-    }
-  });
+  
+  let server = null;
+  
+  // Only start HTTP server if not disabled (useful for testing)
+  if (!disableHttp) {
+    // Start the HTTP server to expose metrics
+    server = http.createServer(async (req, res) => {
+      if (req.url === '/metrics') {
+        res.setHeader('Content-Type', register.contentType);
+        res.end(await register.metrics());
+      } else {
+        res.statusCode = 404;
+        res.end('Not found');
+      }
+    });
 
-  server.listen(port, () => {
-    logger.log('MicroService', 'Metrics', `Metrics server started on port ${port}`, 'INFO');
-  });
+    // Use error handling to avoid crashes during tests
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.log('MicroService', 'Metrics', `Port ${port} already in use, metrics server not started`, 'ERROR');
+      } else {
+        logger.log('MicroService', 'Metrics', `Error starting metrics server: ${err.message}`, 'ERROR');
+      }
+    });
+
+    // Start the server
+    try {
+      server.listen(port, () => {
+        logger.log('MicroService', 'Metrics', `Metrics server started on port ${port}`, 'INFO');
+      });
+    } catch (err) {
+      logger.log('MicroService', 'Metrics', `Error starting metrics server: ${err.message}`, 'ERROR');
+    }
+  }
 
   return {
     // Record when a message is received

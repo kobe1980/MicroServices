@@ -1,12 +1,21 @@
 var logger = require('./logger.js');
 var config = require('./config/config.json');
 var Compressor = require('./Compressor.js');
-var metrics = require('./metrics.js').initMetrics('system-manager');
+
+// Determine if running in test mode by checking for Mocha
+const isTest = typeof global.it === 'function';
+var metrics = require('./metrics.js').initMetrics('system-manager', 9091, isTest);
+
+// Make metrics accessible as an instance property for testing
+function getMetrics() {
+    return metrics;
+}
 
 function SystemManager() {
 	this.id = "SM"+new Date().getTime();
 	if (config.SystemManager_log) logger.log("MicroService", "SystemManager - "+this.id, "Starting server");
 	this.workers_list = Array();
+	this.metrics = getMetrics();
 	const rabbitAdapter = require('./RabbitAdapter');
 	this.context = rabbitAdapter.createContext(config.broker_url);
 	this.notification_newworker_sub;

@@ -25,8 +25,10 @@
 		"start": "node SystemManager.js",
 		"test": "mocha",
 		"test:metrics": "mocha test/metrics-runner.js",
+		"test:all": "mocha test/test-with-metrics.js",
 		"coverage": "nyc --reporter=html --reporter=text mocha --ui bdd --reporter spec --timeout 5000",
-		"coverage:metrics": "nyc --reporter=html --reporter=text mocha test/metrics-runner.js --ui bdd --reporter spec --timeout 5000"
+		"coverage:metrics": "nyc --reporter=html --reporter=text mocha test/metrics-runner.js --ui bdd --reporter spec --timeout 5000",
+		"coverage:all": "nyc --reporter=html --reporter=text mocha test/test-with-metrics.js --ui bdd --reporter spec --timeout 5000"
 	},
 	"repository": {
 		"type": "git",

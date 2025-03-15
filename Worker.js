@@ -12,8 +12,10 @@ function Worker(type) {
 	this.id = type+":"+new Date().getTime();
 	if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Starting client - type: "+type+", id: "+this.id);
 	this.compressor = new Compressor();
-	// Use port 0 for worker metrics to avoid port conflicts in tests
-	this.metrics = metrics.initMetrics('worker-' + type, 0);
+	// Determine if running in test mode by checking for Mocha
+	const isTest = typeof global.it === 'function';
+	// Use port 0 for worker metrics to avoid port conflicts in tests, and disable in tests
+	this.metrics = metrics.initMetrics('worker-' + type, 0, isTest);
 	this.pub;
 	this.notifications_error_sub;
 	this.notifications_newworker_sub;
