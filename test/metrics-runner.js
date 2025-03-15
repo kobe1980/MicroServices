@@ -5,3 +5,4 @@
 require('./metrics.test.js');
 require('./worker.metrics.test.js');
 require('./system.metrics.test.js');
+require('./rabbitAdapter.test.js');

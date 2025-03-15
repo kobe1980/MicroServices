@@ -61,6 +61,12 @@ function Socket(context, type, options) {
 
 Socket.prototype.connect = async function(exchange, routingKey, callback) {
   try {
+    // Handle the case where routingKey is actually a callback (no routing key provided)
+    if (typeof routingKey === 'function' && callback === undefined) {
+      callback = routingKey;
+      routingKey = '';
+    }
+    
     // Create the exchange if it doesn't exist
     await this.context.channel.assertExchange(exchange, 'topic', { durable: false });
     this.exchange = exchange;
@@ -70,8 +76,11 @@ Socket.prototype.connect = async function(exchange, routingKey, callback) {
       const q = await this.context.channel.assertQueue('', { exclusive: true });
       this.queue = q.queue;
       
+      // Use empty string as default if routingKey not provided
+      const actualRoutingKey = routingKey || '';
+      
       // Binding with routing key
-      await this.context.channel.bindQueue(q.queue, exchange, routingKey);
+      await this.context.channel.bindQueue(q.queue, exchange, actualRoutingKey);
       
       // Start consuming messages
       await this.context.channel.consume(q.queue, (msg) => {
