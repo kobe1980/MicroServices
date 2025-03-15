@@ -1,6 +1,6 @@
 {
 	"name": "MicroServices",
-	"version": "0.0.8",
+	"version": "0.0.9",
 	"description": "a microservice architecture ready to use. Just use heritage on workers.",
 	"author": "kobe1980 <kobe1980@gmail.com>",
 	"bin": {
@@ -24,7 +24,9 @@
 	"scripts": {
 		"start": "node SystemManager.js",
 		"test": "mocha",
-		"coverage": "nyc --reporter=html --reporter=text mocha --ui bdd --reporter spec --timeout 5000"
+		"test:metrics": "mocha test/metrics-runner.js",
+		"coverage": "nyc --reporter=html --reporter=text mocha --ui bdd --reporter spec --timeout 5000",
+		"coverage:metrics": "nyc --reporter=html --reporter=text mocha test/metrics-runner.js --ui bdd --reporter spec --timeout 5000"
 	},
 	"repository": {
 		"type": "git",

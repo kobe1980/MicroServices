@@ -2,12 +2,18 @@
 var logger = require('./logger.js');
 var config = require('./config/config.json');
 var Compressor = require('./Compressor.js');
+var metrics = require('./metrics.js');
+
+// Increase the max listeners to avoid warnings in tests
+process.setMaxListeners(20);
 
 function Worker(type) {
 	this.type = type;
 	this.id = type+":"+new Date().getTime();
 	if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Starting client - type: "+type+", id: "+this.id);
 	this.compressor = new Compressor();
+	// Use port 0 for worker metrics to avoid port conflicts in tests
+	this.metrics = metrics.initMetrics('worker-' + type, 0);
 	this.pub;
 	this.notifications_error_sub;
 	this.notifications_newworker_sub;
@@ -44,6 +50,8 @@ function Worker(type) {
 	  			self.pub.connect('notifications', function() {
 					if (config.Worker_log) logger.log("MicroService", "Worker - "+self.id, "Connected to notifications");
 					self.pub.publish("worker.new.send", self.compressor.serialize(self.getConfig()));
+					// Record metric for worker registration
+					self.metrics.recordMessageSent('worker_registration');
 				});
 			});
   		});
@@ -57,17 +65,23 @@ function Worker(type) {
 			if (config.Worker_log) logger.log("MicroService", "Worker - "+self.id, "Connected to notification, Topic error");
 			self.notifications_error_sub.on('data', function(data) {
 				self.receiveError(data);
+				// Record error metric
+				self.metrics.recordMessageReceived('error');
 			});
 		});
 		self.notifications_getAll_sub.connect('notifications', 'worker.getAll', function() {
 			if (config.Worker_log) logger.log("MicroService", "Worker - "+self.id, "Connected to notifications, Topic worker.getAll");
 			self.notifications_getAll_sub.on('data', function(data) {
 				self.pub.publish("worker.new.resend", self.compressor.serialize(self.getConfig()));
+				// Record keepalive response metric
+				self.metrics.recordMessageSent('keepalive_response');
 			});
 		});
 		self.notifications_nextjob_sub.connect('notifications', 'worker.next', function() {
 			if (config.Worker_log) logger.log("MicroService", "Worker - "+self.id, "Connected to notifications, Topic worker.next");
 			self.notifications_nextjob_sub.on('data', function(data) {
+				// Record incoming job request metric
+				self.metrics.recordMessageReceived('job_request');
 				self.receiveNextJob(data);
 			});
 		});
@@ -113,6 +127,10 @@ Worker.prototype.sendToNextWorker = function(next_workers, data, workers_list_id
 	var self = this;
 	var job_to_send = {timeoutId: null, job: {workers_list: next_workers, workers_list_id: (workers_list_id?workers_list_id:0), data: data, sender: this.getConfig(), id: (jobId?jobId:"J"+new Date().getTime())}, tries: (tries?tries:1)};
 	this.pub.publish('worker.next', this.compressor.serialize(job_to_send.job));
+	
+	// Record metrics for sent messages
+	this.metrics.recordMessageSent('job_request');
+	
 	job_to_send.timeoutId = setTimeout(function() {self.resend(next_workers, job_to_send)}, 2000);
 	if (!tries) this.jobsSent.push(job_to_send);
 	else this.updateJobsSent(job_to_send);
@@ -132,8 +150,13 @@ Worker.prototype.resend = function(next_workers, job_to_send) {
 	if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "No worker took the job, resending it");
 	clearTimeout(job_to_send.timeoutId);
 	job_to_send.timeoutId=null;
+	
+	// Record job retry metric
+	this.metrics.recordError('job_retry');
+	
 	if (job_to_send.tries >= this.job_retry) {
 		if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Job Send " + this.job_retry + " times. Stopping", "ERROR");
+		this.metrics.recordError('job_max_retries_exceeded');
 		return this.treatError({error: "Job send too many times", data: job_to_send.job.data});
 	}
 	this.sendToNextWorker(next_workers, job_to_send.job.data, job_to_send.job.workers_list_id, job_to_send.job.id, (job_to_send.tries+1));
@@ -175,15 +198,27 @@ Worker.prototype.receiveNextJob = function(data) {
 
 Worker.prototype.activateJob = function(oData, ignoreUpdate) {
 	if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Receiving next job: "+JSON.stringify(oData));
-	if (oData.workers_list.length > (oData.workers_list_id+1))  {oData.workers_list_id = (oData.workers_list_id+1);}
+	
+	// Record metric for received job
+	this.metrics.recordMessageReceived('job_activated');
+	
+	if (oData.workers_list.length > (oData.workers_list_id+1))  {oData.workers_list_id = (oData.workers_list_id+1);}
 	if (ignoreUpdate) {oData.ignoreUpdate = ignoreUpdate;}
 	this.pub.publish("worker.next.ack", this.compressor.serialize(oData));
+	
+	// Start timing the job processing
+	const timer = this.metrics.startJobTimer('job_processing');
+	
+	// Store the timer with the job data to stop it when processing is complete
+	oData.metricTimer = timer;
+	
 	this.doJob(oData);
 }
 
 // Need to be surcharged by any child class
 Worker.prototype.doJob = function(data) {
-
+	// When overriding this method, add code to stop the timer:
+	// if (data.metricTimer) data.metricTimer();
 }
 
 Worker.prototype.receiveNextJobAck = function(data) {
@@ -193,6 +228,9 @@ Worker.prototype.receiveNextJobAck = function(data) {
 			if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Receiving next job Ack: "+JSON.stringify(oData));
 			this.clearJobTimeout(oData.id, "INFO");	
 			this.deleteJobSent(oData);
+			
+			// Record job acknowledgment metric
+			this.metrics.recordMessageReceived('job_ack');
 		}
 		if (!oData.ignoreUpdate) this.updateSameTypeWorkers();
 	}
@@ -228,6 +266,9 @@ Worker.prototype.newWorker = function(worker) {
 		if (this.sameTypeWorkers[0].worker.id == this.id && oWorker.id != this.id) {
 			if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "First on the list, sending list to others");
 			this.pub.publish('worker.list', this.compressor.serialize(this.sameTypeWorkers));
+			
+			// Record worker list update metric
+			this.metrics.recordMessageSent('worker_list_update');
 		}
 	}
 }
@@ -240,6 +281,9 @@ Worker.prototype.delWorker = function(worker) {
 			if (this.sameTypeWorkers[i].worker.id == oWorker.id) {
 				this.sameTypeWorkers.splice(i, 1);
 				this.updateSameTypeWorkers((i>this.sameTypeWorkers.length-1)?0:i);
+				
+				// Record worker removal metric
+				this.metrics.recordMessageReceived('worker_removal');
 				break;
 			}
 		}
@@ -251,6 +295,9 @@ Worker.prototype.updateWorkersList = function(workers_list) {
 	if (oWorkers_list[0].worker.type == this.type) {
 		if (config.Worker_log) logger.log("MicroService", "Worker - "+this.id, "Updating Workers List");
 		this.sameTypeWorkers = oWorkers_list;
+		
+		// Record worker list update metric
+		this.metrics.recordMessageReceived('worker_list_update');
 	}
 }
 

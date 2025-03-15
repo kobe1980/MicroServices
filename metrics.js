@@ -60,7 +60,9 @@ const connectedWorkers = new promClient.Gauge({
  * @param {string} serviceName - The name of the service
  * @param {number} port - The port to expose metrics on
  */
-function initMetrics(serviceName, port = 9091) {
+function initMetrics(serviceName, port) {
+  // In test environment, we might want to disable the HTTP server
+  port = port === undefined ? 9091 : port;
   // Start the HTTP server to expose metrics
   const server = http.createServer(async (req, res) => {
     if (req.url === '/metrics') {
